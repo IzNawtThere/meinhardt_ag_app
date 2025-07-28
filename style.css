@@ -1,0 +1,64 @@
+html, body, [class*="css"] {
+    font-family: 'Segoe UI', sans-serif;
+    color: #333333;
+    background-color: #FAFAFA;
+}
+
+h1, h2, h3 {
+    color: #222;
+    font-weight: 700;
+}
+
+section.main > div {
+    padding: 2rem 3rem;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0px 1px 3px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.stFileUploader {
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+button[kind="primary"] {
+    background-color: #0066cc;
+    color: white;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 10px 18px;
+    transition: background-color 0.3s ease;
+}
+
+button[kind="primary"]:hover {
+    background-color: #004999;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #f1f3f4;
+    padding: 1rem;
+    border-right: 1px solid #ddd;
+}
+
+input, textarea, select {
+    border-radius: 6px !important;
+    padding: 10px !important;
+    font-size: 15px !important;
+    border: 1px solid #ccc !important;
+}
+
+.stCheckbox {
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 4px;
+}
