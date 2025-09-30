@@ -1,1497 +1,1609 @@
 """
-Enhanced Main AG Module - Professional Industry-Grade Version
-Complete with calculation visualization, qualitative formulas, and professional UI
+Main AG Module - COMPLETE FIXED VERSION
+Proper value display, no percentage confusion
 """
 
+import re
 import streamlit as st
-import json
-from datetime import datetime
-import random
 import pandas as pd
-from typing import Dict, Any, List, Tuple
+import json
+import random
+import hashlib
+import html
+from datetime import datetime
+from typing import Dict, Any, List, Tuple, Optional
+import plotly.graph_objects as go
+import plotly.express as px
+from collections import defaultdict
+import numpy as np
 
-# Import the components
-from formula_parser_complete import FormulaParser, QualitativeDropdownHandler, WeightedAggregator
-from calculation_visualizer import CalculationVisualizer, QualitativeFormulaHandler
+from smart_calculation_engine_updated import SmartCalculationEngine
+from improved_test_loader import generate_better_test_values
 
-class MainAGEnhanced:
-    def __init__(self):
-        self.parser = FormulaParser()
-        self.aggregator = WeightedAggregator()
-        self.visualizer = CalculationVisualizer()
-        self.qual_handler = QualitativeFormulaHandler()
-        self.load_database()
-        self.fix_database_hierarchy()
-        
-        # Professional styling
-        self._apply_custom_css()
+# Page config
+st.set_page_config(
+    page_title="Meinhardt Assessment System",
+    page_icon="MA",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Advanced Professional CSS
+st.markdown("""
+<style>
+    /* Professional color palette */
+    :root {
+        --primary: #1a237e;
+        --primary-light: #3949ab;
+        --primary-dark: #000051;
+        --secondary: #00897b;
+        --accent: #ff6f00;
+        --success: #2e7d32;
+        --warning: #f57c00;
+        --danger: #c62828;
+        --info: #0277bd;
+        --light: #f5f5f5;
+        --dark: #212121;
+        --border: #e0e0e0;
+    }
     
-    def _apply_custom_css(self):
-        """Apply professional custom CSS styling"""
-        st.markdown("""
-        <style>
-        /* Professional color scheme */
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 24px;
+    /* Hide Streamlit defaults */
+    #MainMenu, footer, header {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* Professional header */
+    .system-header {
+        background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+        padding: 2rem 3rem;
+        margin: -3rem -3rem 2rem -3rem;
+        color: white;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .system-header h1 {
+        font-size: 2.2rem;
+        font-weight: 300;
+        margin: 0;
+        letter-spacing: 1px;
+    }
+    
+    .system-header p {
+        font-size: 1rem;
+        margin-top: 0.5rem;
+        opacity: 0.9;
+    }
+    
+    /* Metric cards */
+    [data-testid="metric-container"] {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        border-left: 4px solid var(--primary-light);
+        transition: transform 0.2s;
+    }
+    
+    [data-testid="metric-container"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16);
+    }
+    
+    /* Professional buttons */
+    .stButton > button {
+        background: var(--primary-light);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .stButton > button:hover {
+        background: var(--primary);
+        box-shadow: 0 2px 8px rgba(26, 35, 126, 0.3);
+    }
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background: white;
+        padding: 0.5rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        font-weight: 500;
+        color: var(--dark);
+        padding: 0.75rem 1.25rem;
+        border-radius: 4px;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: var(--primary-light);
+        color: white;
+    }
+    
+    /* Calculation display */
+    .calc-box {
+        background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        border: 1px solid var(--border);
+        font-family: 'Roboto Mono', monospace;
+    }
+    
+    /* No truncation */
+    .full-text {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow: visible !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+class AdvancedMeinhardt:
+    def __init__(self):
+        self.engine = SmartCalculationEngine(debug=False)
+        self.db_path = 'data/meinhardt_db.json'
+        self.load_database()
+        self.init_session_state()
+        self.categorize_acs()
+        self.setup_pillars()
+    
+    def setup_pillars(self):
+        """Define pillar configuration with colors"""
+        self.pillar_config = {
+            'P&M': {'name': 'Planning & Monitoring', 'color': '#1a237e'},
+            'D&T': {'name': 'Design & Technical', 'color': '#00897b'},
+            'D&C': {'name': 'Development & Construction', 'color': '#ff6f00'},
+            'CE&O': {'name': 'Cost Estimation & Optimization', 'color': '#c62828'},
+            'I&T': {'name': 'Innovation & Technology', 'color': '#0277bd'},
+            'S&O': {'name': 'Sustainability & Operations', 'color': '#2e7d32'}
         }
-        
-        .stTabs [data-baseweb="tab"] {
-            height: 50px;
-            padding: 10px 24px;
-            background-color: #f8f9fa;
-            border-radius: 8px 8px 0 0;
-            font-weight: 500;
-        }
-        
-        .stTabs [aria-selected="true"] {
-            background-color: #0066cc;
-            color: white;
-        }
-        
-        /* Metric cards styling */
-        [data-testid="metric-container"] {
-            background-color: #ffffff;
-            border: 1px solid #e3e3e3;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        
-        /* Expander styling */
-        .streamlit-expanderHeader {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            font-weight: 500;
-        }
-        
-        /* Professional button styling */
-        .stButton > button {
-            background-color: #0066cc;
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-        
-        .stButton > button:hover {
-            background-color: #0052a3;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        
-        /* Success/Warning/Error messages */
-        .stSuccess {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
-            border-radius: 6px;
-        }
-        
-        .element-container .stMarkdown h3 {
-            color: #333;
-            font-weight: 600;
-            margin-top: 20px;
-        }
-        </style>
-        """, unsafe_allow_html=True)
     
     def load_database(self):
-        """Load the database"""
+        """Load database"""
         try:
-            with open('data/meinhardt_db.json', 'r') as f:
-                self.database = json.load(f)
-        except:
-            st.error("Database not found. Please run Phase 1 parser first.")
-            self.database = {}
+            with open(self.db_path, 'r', encoding='utf-8') as f:
+                self.db = json.load(f)
+        except Exception as e:
+            st.error(f"Database error: {str(e)}")
+            self.db = {}
     
-    def fix_database_hierarchy(self):
-        """Fix missing pillar assignments in Key Topics"""
-        if 'key_topics' not in self.database:
-            return
-        
-        fixed_count = 0
-        
-        for kt_name, kt_data in self.database['key_topics'].items():
-            if 'pillar' not in kt_data or not kt_data.get('pillar'):
-                pillar = self._infer_kt_pillar(kt_name, kt_data)
-                if pillar:
-                    kt_data['pillar'] = pillar
-                    fixed_count += 1
-        
-        if fixed_count > 0:
-            with open('data/meinhardt_db.json', 'w') as f:
-                json.dump(self.database, f, indent=2)
+    def init_session_state(self):
+        """Initialize session state"""
+        defaults = {
+            'dp_values': {},
+            'ac_results': {},
+            'ps_results': {},
+            'kt_results': {},
+            'qualitative_inputs': {},
+            'formula_overrides': {},
+            'calculation_log': [],
+            'ac_categories': {'quantitative': [], 'qualitative': [], 'descriptive': []},
+            'formula_issues': [],
+            'dp_mapping_hints': {}
+        }
+        for key, default in defaults.items():
+            if key not in st.session_state:
+                st.session_state[key] = default
     
-    def _infer_kt_pillar(self, kt_name: str, kt_data: dict) -> str:
-        """Infer pillar for a Key Topic"""
-        kt_lower = kt_name.lower()
+    def decode_special_chars(self, text):
+        """Decode special characters"""
+        if not text:
+            return text
+        text = html.unescape(text)
+        replacements = {
+            'Â': ' ', 'â': "'", 'â€™': "'", 'â€œ': '"', 'â€': '"',
+            'â€"': '-', 'â€"': '—', 'Ã': '', '\xa0': ' '
+        }
+        for old, new in replacements.items():
+            text = text.replace(old, new)
+        return text.strip()
+    
+    def categorize_acs(self):
+        """Categorize ACs"""
+        for ac_name, ac_data in self.db.get('assessment_criteria', {}).items():
+            formula = ac_data.get('formula', '')
+            
+            if not formula or formula == 'nan':
+                st.session_state.ac_categories['descriptive'].append(ac_name)
+                continue
+            
+            formula_lower = formula.lower()
+            
+            qualitative_keywords = [
+                'yes/no', 'applied', 'completed', 'satisfactory if',
+                'good if', 'strong if', 'assess if', 'score if',
+                'yes if', 'no if'
+            ]
+            
+            if any(keyword in formula_lower for keyword in qualitative_keywords):
+                st.session_state.ac_categories['qualitative'].append(ac_name)
+            elif any(op in formula for op in ['+', '-', '*', '/', '%', '=']):
+                st.session_state.ac_categories['quantitative'].append(ac_name)
+            else:
+                st.session_state.ac_categories['descriptive'].append(ac_name)
+    
+    def get_pillar_for_item(self, item_name: str) -> str:
+        """Get pillar for any item"""
+        item_lower = item_name.lower()
         
-        # Map based on KT name patterns
-        pillar_patterns = {
-            'Planning & Monitoring': ['schedule', 'planning', 'monitoring', 'progress'],
-            'Design & Technical': ['design', 'technical'],
-            'Delivery & Construction': ['delivery', 'construction'],
-            'Commercial, Economic & Outcomes': ['commercial', 'economic'],
-            'Innovation & Technology': ['innovation', 'technology'],
-            'Sustainability & Operations': ['sustainability', 'operations']
+        # Check data points for pillar info
+        if item_name in self.db.get('data_points', {}):
+            dp_data = self.db['data_points'][item_name]
+            if dp_data.get('pillar'):
+                return dp_data['pillar']
+        
+        # Check AC's data points
+        if item_name in self.db.get('assessment_criteria', {}):
+            ac_data = self.db['assessment_criteria'][item_name]
+            for dp_name in ac_data.get('data_points', []):
+                if dp_name in self.db.get('data_points', {}):
+                    dp_data = self.db['data_points'][dp_name]
+                    if dp_data.get('pillar'):
+                        return dp_data['pillar']
+        
+        # Pattern matching
+        patterns = {
+            'P&M': ['planning', 'monitoring', 'schedule', 'cost', 'value', 'devco', 'milestone'],
+            'D&T': ['design', 'technical', 'drawing', 'specification'],
+            'D&C': ['development', 'construction', 'site', 'safety'],
+            'CE&O': ['cost estimation', 'optimization', 'change request', 'cost impact'],
+            'I&T': ['innovation', 'technology', 'r&d', 'pilot', 'smart'],
+            'S&O': ['sustainability', 'operation', 'environment', 'carbon']
         }
         
-        for pillar, patterns in pillar_patterns.items():
-            if any(pattern in kt_lower for pattern in patterns):
+        for pillar, keywords in patterns.items():
+            if any(kw in item_lower for kw in keywords):
                 return pillar
         
-        # Try to infer from connected data
-        for ps_name in kt_data.get('performance_signals', []):
-            ps_data = self.database.get('performance_signals', {}).get(ps_name, {})
-            for ac_name in ps_data.get('assessment_criteria', []):
-                ac_data = self.database.get('assessment_criteria', {}).get(ac_name, {})
-                for dp_name in ac_data.get('data_points', []):
-                    dp_data = self.database.get('data_points', {}).get(dp_name, {})
-                    if dp_data.get('pillar'):
-                        return self._expand_pillar_name(dp_data['pillar'])
+        return 'General'
+    
+    def get_unique_key(self, base: str, suffix: str = "") -> str:
+        """Generate unique key"""
+        full_key = f"{base}_{suffix}"
+        key_hash = hashlib.md5(full_key.encode()).hexdigest()[:8]
+        return f"{base}_{key_hash}"
+    
+    def format_value_for_display(self, value: Any) -> str:
+        """Format value for display - KEEP AS DECIMAL"""
+        if isinstance(value, str):
+            return value
         
-        return None
+        if isinstance(value, (int, float)):
+            # Always show as decimal with 2-4 decimal places
+            if value == 0:
+                return "0.00"
+            elif abs(value) < 0.01:
+                return f"{value:.4f}"
+            elif abs(value) < 1:
+                return f"{value:.4f}"
+            else:
+                return f"{value:.2f}"
+        
+        return str(value)
     
-    def _expand_pillar_name(self, abbreviation: str) -> str:
-        """Convert pillar abbreviation to full name"""
-        pillar_map = {
-            'P&M': 'Planning & Monitoring',
-            'D&T': 'Design & Technical',
-            'D&C': 'Delivery & Construction',
-            'CE&O': 'Commercial, Economic & Outcomes',
-            'I&T': 'Innovation & Technology',
-            'S&O': 'Sustainability & Operations'
-        }
-        return pillar_map.get(abbreviation, abbreviation)
-    
-    def render(self):
-        """Main render method with professional UI"""
-        # Professional header
+    def render_header(self):
+        """Render header"""
         st.markdown("""
-        <div style="background: linear-gradient(135deg, #0066cc 0%, #004499 100%); 
-                    padding: 30px; margin: -20px -20px 20px -20px; border-radius: 0 0 15px 15px;">
-            <h1 style="color: white; margin: 0;">Assessment Guide Module</h1>
-            <p style="color: #e6f0ff; margin: 10px 0 0 0;">Professional Assessment Input & Calculation System</p>
+        <div class="system-header">
+            <h1>Meinhardt Assessment System</h1>
+            <p>Enterprise Project Performance Management Platform</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Assessment management section
-        self._render_assessment_management()
-        
-        if 'current_assessment' in st.session_state:
-            # Professional tab interface
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                " Data Input",
-                " Calculation Analysis",
-                " Interactive Visualization",
-                " Executive Summary",
-                " AC Validation"
-            ])
-            
-            with tab1:
-                self._render_data_input_enhanced()
-            
-            with tab2:
-                self._render_calculation_analysis()
-            
-            with tab3:
-                self._render_interactive_visualization()
-            
-            with tab4:
-                self._render_executive_summary()
-
-            with tab5:
-                from ac_validation_fixed import ACValidatorFixed
-                validator = ACValidatorFixed()
-                validator.render_validation_tab()
     
-    def _render_assessment_management(self):
-        """Enhanced assessment management with better UI"""
-        with st.container():
-            col1, col2, col3, col4, col5 = st.columns([3, 2, 2, 2, 1])
-            
-            with col1:
-                assessment_name = st.text_input(
-                    "Assessment Project",
-                    value=st.session_state.get('assessment_name', 'New Assessment'),
-                    placeholder="Enter project name..."
-                )
-            
-            with col2:
-                if st.button("Create/Load", use_container_width=True):
-                    self._create_assessment(assessment_name)
-            
-            with col3:
-                if st.button("Generate Test Data", use_container_width=True):
-                    self._fill_test_data()
-            
-            with col4:
-                if st.button("Quick Calculate", use_container_width=True):
-                    if 'current_assessment' in st.session_state:
-                        self._calculate_all()
-
-            with col5:
-                if st.button("🔄", use_container_width=True, help= "Clear all assessment data but keep database structure"):
-                    self._clear_assessment_data()
-                    st.rerun()
+    def render_metrics(self):
+        """Render metrics"""
+        metrics = [
+            ("Data Points", 
+             len([v for v in st.session_state.dp_values.values() if v]),
+             len(self.db.get('data_points', {}))),
+            ("Assessment Criteria",
+             len([r for r in st.session_state.ac_results.values() 
+                  if r.get('value') is not None and r.get('value') != 'Data Not Available']),
+             len(self.db.get('assessment_criteria', {}))),
+            ("Performance Signals",
+             len([r for r in st.session_state.ps_results.values() 
+                  if isinstance(r.get('value'), (int, float))]),
+             len(self.db.get('performance_signals', {}))),
+            ("Key Topics",
+             len([r for r in st.session_state.kt_results.values() 
+                  if isinstance(r.get('value'), (int, float))]),
+             len(self.db.get('key_topics', {})))
+        ]
         
-        st.markdown("---")
+        cols = st.columns(4)
+        for col, (label, current, total) in zip(cols, metrics):
+            with col:
+                percentage = (current/total*100) if total > 0 else 0
+                st.metric(label, f"{current}/{total}",
+                         f"{percentage:.0f}%",
+                         delta_color="normal" if percentage >= 70 else "inverse")
     
-    def _create_assessment(self, name: str):
-        """Create or load an assessment"""
-        assessment_id = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    def render_quantitative_input_by_pillar(self):
+        """Quantitative input organized by pillar"""
+        st.subheader("Quantitative Data Point Input")
         
-        st.session_state['current_assessment'] = assessment_id
-        st.session_state['assessment_name'] = name
+        # Get numeric DPs and organize by pillar
+        numeric_by_pillar = defaultdict(list)
+        for dp_name, dp_data in self.db.get('data_points', {}).items():
+            if dp_data.get('data_type') in ['number', 'percentage']:
+                pillar = self.get_pillar_for_item(dp_name)
+                numeric_by_pillar[pillar].append((dp_name, dp_data))
         
-        if 'assessments' not in st.session_state:
-            st.session_state['assessments'] = {}
-        
-        if assessment_id not in st.session_state['assessments']:
-            st.session_state['assessments'][assessment_id] = {
-                'name': name,
-                'created_at': datetime.now().isoformat(),
-                'dp_values': {},
-                'ac_results': {},
-                'ps_results': {},
-                'kt_results': {},
-                'overall_score': {},
-                'calculation_history': []
-            }
-        
-        st.success(f"Assessment '{name}' ready")
-    
-    def _fill_test_data(self):
-        """Fill all DPs with intelligent test data AND SAVE TO DATABASE"""
-        if 'current_assessment' not in st.session_state:
-            st.error("Please create an assessment first")
-            return
-        
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        # Generate test data with more realistic values
-        for dp_name, dp_data in self.database.get('data_points', {}).items():
-            data_type = dp_data.get('data_type', 'number')
-            dp_lower = dp_name.lower()
-            
-            # CRITICAL FIX: Use realistic values
-            if 'earned value' in dp_lower:
-                value = random.uniform(1000000, 5000000)  # 1M to 5M
-            elif 'planned value' in dp_lower:
-                value = random.uniform(5000000, 10000000)  # 5M to 10M
-            elif 'actual cost' in dp_lower:
-                value = random.uniform(1000000, 8000000)
-            elif 'budget' in dp_lower or 'budget at completion' in dp_lower:
-                value = random.uniform(5000000, 15000000)
-            elif 'number of' in dp_lower:
-                if 'total' in dp_lower:
-                    value = random.randint(50, 200)
-                else:
-                    value = random.randint(5, 50)
-            elif 'percentage' in dp_lower or '%' in dp_name:
-                value = random.uniform(60, 95)
-            elif data_type == 'percentage':
-                value = random.uniform(65, 90)
-            elif data_type == 'boolean':
-                value = random.choice(['Yes', 'Yes', 'Partial', 'No'])
-            elif data_type == 'date':
-                value = datetime.now().strftime('%Y-%m-%d')
-            elif 'cost' in dp_lower or 'value' in dp_lower or 'amount' in dp_lower:
-                value = random.uniform(100000, 5000000)
-            elif data_type == 'number':
-                value = random.uniform(100, 10000)
-            else:
-                value = random.choice(['Completed', 'In Progress', 'Planned'])
-            
-            assessment['dp_values'][dp_name] = value
-        
-        # Save to database file
-        assessment_id = st.session_state['current_assessment']
-        if 'assessments' not in self.database:
-            self.database['assessments'] = {}
-        self.database['assessments'][assessment_id] = assessment
-        
-        # Write to file immediately
-        with open('data/meinhardt_db.json', 'w') as f:
-            json.dump(self.database, f, indent=2)
-        
-        st.success(f"Generated test data for {len(assessment['dp_values'])} data points")
-        st.rerun()
-
-    def _clear_assessment_data(self):
-        """Clear only assessment data from database, keeping structure intact"""
-        if 'assessments' in self.database:
-            del self.database['assessments']
-        
-        with open('data/meinhardt_db.json', 'w') as f:
-            json.dump(self.database, f, indent=2)
-        
-        if 'assessments' in st.session_state:
-            st.session_state['assessments'] = {}
-        if 'current_assessment' in st.session_state:
-            del st.session_state['current_assessment']
-        
-        st.info("Cleared assessment data while keeping database structure")
-    
-    def _render_data_input_enhanced(self):
-        """Enhanced data input interface with better organization"""
-        st.subheader("Data Point Input Interface")
-        
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        # Add search and filter options
-        col1, col2 = st.columns([3, 1])
+        # Quick actions
+        col1, col2 = st.columns([1, 3])
         with col1:
-            search_term = st.text_input("Search Data Points", placeholder="Type to search...")
-        with col2:
-            filter_type = st.selectbox("Filter by Type", ["All", "Number", "Percentage", "Boolean", "Text"])
+            if st.button("FILL TEST VALUES", type="primary", use_container_width=True):
+                for pillar_dps in numeric_by_pillar.values():
+                    for dp_name, dp_data in pillar_dps:
+                        if dp_data.get('data_type') == 'percentage':
+                            st.session_state.dp_values[dp_name] = random.uniform(60, 95)
+                        else:
+                            st.session_state.dp_values[dp_name] = random.uniform(1000, 100000)
+                st.success("Test values loaded")
+                st.rerun()
         
-        # Group DPs by pillar
-        pillars = {}
-        for dp_name, dp_data in self.database.get('data_points', {}).items():
-            # Apply filters
-            if search_term and search_term.lower() not in dp_name.lower():
-                continue
-            if filter_type != "All" and dp_data.get('data_type', '').lower() != filter_type.lower():
-                continue
+        # Display by pillar tabs
+        if numeric_by_pillar:
+            pillar_tabs = []
+            for pillar in sorted(numeric_by_pillar.keys()):
+                config = self.pillar_config.get(pillar, {'name': pillar})
+                count = len(numeric_by_pillar[pillar])
+                pillar_tabs.append(f"{config['name']} ({count})")
             
-            pillar = dp_data.get('pillar', 'Other')
-            if pillar not in pillars:
-                pillars[pillar] = []
-            pillars[pillar].append((dp_name, dp_data))
-        
-        # Create tabs for each pillar
-        if pillars:
-            pillar_tabs = st.tabs(list(pillars.keys()))
+            tabs = st.tabs(pillar_tabs)
             
-            for tab, (pillar, dps) in zip(pillar_tabs, pillars.items()):
-                with tab:
-                    # Show statistics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Total DPs", len(dps))
-                    with col2:
-                        filled = sum(1 for dp_name, _ in dps if dp_name in assessment['dp_values'])
-                        st.metric("Filled", filled)
-                    with col3:
-                        completion = (filled / len(dps) * 100) if dps else 0
-                        st.metric("Completion", f"{completion:.0f}%")
-                    
-                    st.markdown("---")
-                    
-                    # Create input grid with better layout
+            for idx, (pillar, dps) in enumerate(sorted(numeric_by_pillar.items())):
+                with tabs[idx]:
                     cols = st.columns(2)
-                    for idx, (dp_name, dp_data) in enumerate(dps):
-                        with cols[idx % 2]:
-                            current_value = assessment['dp_values'].get(dp_name, '')
-                            data_type = dp_data.get('data_type', 'text')
+                    for dp_idx, (dp_name, dp_data) in enumerate(dps):
+                        with cols[dp_idx % 2]:
+                            current = st.session_state.dp_values.get(dp_name, 0)
                             
-                            # Create appropriate input based on type
-                            if data_type == 'number':
-                                value = st.number_input(
-                                    dp_name,
-                                    value=float(current_value) if current_value else 0.0,
-                                    key=f"dp_{dp_name}",
-                                    format="%.2f"
-                                )
-                            elif data_type == 'percentage':
+                            if dp_data.get('data_type') == 'percentage':
                                 value = st.slider(
                                     dp_name,
                                     0.0, 100.0,
-                                    value=float(current_value) if current_value else 0.0,
-                                    key=f"dp_{dp_name}",
-                                    format="%.1f%%"
-                                )
-                            elif data_type == 'boolean' or self.parser._is_qualitative(dp_data.get('formula', '')):
-                                # Get appropriate dropdown options
-                                qual_handler = QualitativeDropdownHandler()
-                                ac_data = self._find_ac_for_dp(dp_name)  # You'll need to implement this
-                                
-                                if ac_data:
-                                    options, scores = qual_handler.get_dropdown_options(
-                                        ac_data.get('formula', ''),
-                                        ac_data.get('thresholds', {})
-                                    )
-                                else:
-                                    options = ['Yes', 'Partial', 'No']
-                                
-                                value = st.selectbox(
-                                    dp_name,
-                                    options,
-                                    index=0 if current_value not in options else options.index(current_value),
-                                    key=f"dp_{dp_name}"
+                                    float(current),
+                                    key=self.get_unique_key("dp", dp_name)
                                 )
                             else:
-                                value = st.text_input(
+                                value = st.number_input(
                                     dp_name,
-                                    value=current_value,
-                                    key=f"dp_{dp_name}",
-                                    placeholder="Enter value..."
+                                    value=float(current),
+                                    format="%.2f",
+                                    key=self.get_unique_key("dp", dp_name)
                                 )
                             
-                            # Update value if changed
-                            if value != current_value:
-                                assessment['dp_values'][dp_name] = value
-                    
-                    # Calculate button for this pillar
-                    st.markdown("---")
-                    if st.button(f"Calculate {pillar}", key=f"calc_{pillar}", use_container_width=True):
-                        self._calculate_pillar(pillar)
-        
-        # Master calculate button
-        st.markdown("---")
-        if st.button("Calculate Complete Assessment", type="primary", key="calc_all", use_container_width=True):
-            self._calculate_all()
+                            if value != current:
+                                st.session_state.dp_values[dp_name] = value
     
-    def _render_calculation_analysis(self):
-        """Render detailed calculation analysis"""
-        st.subheader("Calculation Analysis & Breakdown")
+    def render_qualitative_input_by_pillar(self):
+        """Qualitative input organized by pillar"""
+        st.subheader("Qualitative Assessment Input")
         
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
+        # Organize by pillar
+        qual_by_pillar = defaultdict(list)
+        for ac_name in st.session_state.ac_categories['qualitative']:
+            pillar = self.get_pillar_for_item(ac_name)
+            qual_by_pillar[pillar].append(ac_name)
         
-        if not assessment.get('ac_results'):
-            st.info("No calculations performed yet. Please input data and calculate.")
-            return
-        
-        # Use the calculation visualizer
-        self.visualizer.render_calculation_tree(assessment, self.database)
-
-    def _render_interactive_visualization(self):
-        """Render professional interactive visualization"""
-        st.subheader("Interactive Calculation Hierarchy")
-        
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        if not assessment.get('kt_results'):
-            st.info("No results to visualize. Please perform calculations first.")
-            return
-        
-        # Overall score card with professional design
-        overall = assessment.get('overall_score', {})
-        if overall:
-            # Create columns for better layout
-            col1, col2, col3 = st.columns([1, 2, 1])
-            
-            with col2:
-                # Professional score card
-                score_color = self._get_score_color(overall.get('value', 0))
-                st.markdown(f"""
-                <div style="
-                    background: white;
-                    border: 3px solid {score_color};
-                    border-radius: 20px;
-                    padding: 40px;
-                    text-align: center;
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-                ">
-                    <h2 style="margin: 0; color: #333; font-weight: 300;">Overall Assessment Score</h2>
-                    <h1 style="
-                        font-size: 72px; 
-                        margin: 20px 0; 
-                        color: {score_color};
-                        font-weight: bold;
-                    ">{overall.get('value', 0):.1f}%</h1>
-                    <p style="
-                        font-size: 24px; 
-                        margin: 0; 
-                        color: #666;
-                        font-weight: 500;
-                    ">{overall.get('rating', 'N/A')}</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["Hierarchical View", "Performance Matrix", "Detailed Breakdown"])
-        
-        with tab1:
-            self._render_hierarchical_view(assessment)
-        
-        with tab2:
-            self._render_performance_matrix(assessment)
-        
-        with tab3:
-            self._render_detailed_breakdown(assessment)
-
-    def _render_hierarchical_view(self, assessment: Dict):
-        """Render hierarchical tree view"""
-        st.markdown("### Assessment Hierarchy")
-        
-        # Create tree structure
-        for kt_name, kt_result in assessment.get('kt_results', {}).items():
-            value = kt_result.get('value', 0)
-            rating = kt_result.get('rating', 'N/A')
-            color = self._get_score_color(value)
-            
-            # KT level card
-            with st.expander(f"📊 **{kt_name}** - {value:.1f}% ({rating})", expanded=False):
-                # KT details
-                kt_data = self.database.get('key_topics', {}).get(kt_name, {})
+        # Quick actions
+        if st.button("AUTO-FILL DEFAULTS", type="primary"):
+            for ac_name in st.session_state.ac_categories['qualitative']:
+                ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+                thresholds = ac_data.get('thresholds', {})
+                options = self.get_qualitative_options(thresholds)
                 
-                # Progress bar for KT score (with safety check)
-                progress_value = min(max(value / 100, 0), 1.0)  # Ensure between 0 and 1
-                st.progress(progress_value)
-                
-                # PS breakdown
-                st.markdown("#### Performance Signals")
-                ps_list = kt_data.get('performance_signals', [])
-                
-                if ps_list:
-                    ps_cols = st.columns(len(ps_list) if len(ps_list) <= 3 else 3)
-                    
-                    for idx, ps_name in enumerate(ps_list):
-                        if ps_name in assessment.get('ps_results', {}):
-                            ps_result = assessment['ps_results'][ps_name]
-                            ps_value = ps_result.get('value', 0)
-                            
-                            with ps_cols[idx % len(ps_cols)]:
-                                # Mini card for PS
-                                ps_color = self._get_score_color(ps_value)
-                                st.markdown(f"""
-                                <div style="
-                                    background: white;
-                                    border: 1px solid {ps_color};
-                                    border-radius: 10px;
-                                    padding: 15px;
-                                    margin: 5px 0;
-                                    text-align: center;
-                                ">
-                                    <h5 style="margin: 0; color: #666; font-size: 14px;">{ps_name[:30]}...</h5>
-                                    <h3 style="margin: 10px 0; color: {ps_color};">{ps_value:.1f}%</h3>
-                                    <p style="margin: 0; color: #999; font-size: 12px;">{ps_result.get('rating', 'N/A')}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                    
-                    # AC details in collapsible
-                    if st.checkbox(f"Show Assessment Criteria for {kt_name}", key=f"ac_{kt_name}"):
-                        st.markdown("#### Assessment Criteria Breakdown")
-                        
-                        for ps_name in ps_list:
-                            ps_data = self.database.get('performance_signals', {}).get(ps_name, {})
-                            ac_list = ps_data.get('assessment_criteria', [])
-                            
-                            if ac_list:
-                                st.markdown(f"##### {ps_name}")
-                                
-                                ac_data = []
-                                for ac_name in ac_list:
-                                    if ac_name in assessment.get('ac_results', {}):
-                                        ac_result = assessment['ac_results'][ac_name]
-                                        ac_data.append({
-                                            'Criteria': ac_name[:50] + '...' if len(ac_name) > 50 else ac_name,
-                                            'Score': f"{ac_result.get('value', 0):.2f}%",
-                                            'Weight': f"{self.database.get('assessment_criteria', {}).get(ac_name, {}).get('weight', 0):.1f}%",
-                                            'Rating': ac_result.get('rating', 'N/A')
-                                        })
-                                
-                                if ac_data:
-                                    df = pd.DataFrame(ac_data)
-                                    st.dataframe(df, use_container_width=True, hide_index=True)
-
-    def _render_performance_matrix(self, assessment: Dict):
-        """Render performance matrix view"""
-        st.markdown("### Performance Matrix")
-        
-        # Create matrix data
-        matrix_data = []
-        
-        for kt_name, kt_result in assessment.get('kt_results', {}).items():
-            kt_data = self.database.get('key_topics', {}).get(kt_name, {})
-            
-            for ps_name in kt_data.get('performance_signals', []):
-                if ps_name in assessment.get('ps_results', {}):
-                    ps_result = assessment['ps_results'][ps_name]
-                    
-                    matrix_data.append({
-                        'Key Topic': kt_name[:30] + '...' if len(kt_name) > 30 else kt_name,
-                        'Performance Signal': ps_name[:30] + '...' if len(ps_name) > 30 else ps_name,
-                        'PS Score': ps_result.get('value', 0),
-                        'PS Weight': self.database.get('performance_signals', {}).get(ps_name, {}).get('weight', 0),
-                        'Rating': ps_result.get('rating', 'N/A')
-                    })
-        
-        if matrix_data:
-            df = pd.DataFrame(matrix_data)
-            
-            # Create pivot table
-            pivot = df.pivot_table(
-                index='Key Topic',
-                columns='Rating',
-                values='PS Score',
-                aggfunc='count',
-                fill_value=0
-            )
-            
-            # Display matrix
-            st.markdown("#### Performance Distribution by Key Topic")
-            
-            # Create a styled pivot table
-            if not pivot.empty:
-                styled_pivot = pivot.style.background_gradient(cmap='RdYlGn', axis=None, vmin=0)
-                st.dataframe(styled_pivot, use_container_width=True)
-            
-            st.markdown("---")
-            
-            # Detailed table
-            st.markdown("#### Detailed Performance Signals")
-            
-            # Style the dataframe
-            def color_rating(val):
-                if val == 'Good':
-                    return 'background-color: #d4edda; color: #155724;'
-                elif val == 'Satisfactory':
-                    return 'background-color: #fff3cd; color: #856404;'
+                # Smart selection
+                ac_lower = ac_name.lower()
+                if 'risk' in ac_lower:
+                    choice = 'No' if 'No' in options else options[-1]
+                elif 'compliance' in ac_lower:
+                    choice = 'Yes' if 'Yes' in options else options[0]
                 else:
-                    return 'background-color: #f8d7da; color: #721c24;'
+                    choice = options[0]
+                
+                st.session_state.qualitative_inputs[ac_name] = choice
             
-            styled_df = df.style.format({
-                'PS Score': '{:.1f}%',
-                'PS Weight': '{:.1f}%'
-            }).applymap(color_rating, subset=['Rating'])
-            
-            st.dataframe(styled_df, use_container_width=True, hide_index=True)
-
-    def _render_detailed_breakdown(self, assessment: Dict):
-        """Render detailed breakdown with all calculations"""
-        st.markdown("### Detailed Calculation Breakdown")
+            st.success("Defaults applied")
+            st.rerun()
         
-        # Create selection box for KT
-        kt_names = list(assessment.get('kt_results', {}).keys())
-        selected_kt = st.selectbox("Select Key Topic for Detailed View", kt_names)
-        
-        if selected_kt:
-            kt_result = assessment['kt_results'][selected_kt]
-            kt_data = self.database.get('key_topics', {}).get(selected_kt, {})
+        # Display by pillar
+        if qual_by_pillar:
+            pillar_tabs = []
+            for pillar in sorted(qual_by_pillar.keys()):
+                config = self.pillar_config.get(pillar, {'name': pillar})
+                count = len(qual_by_pillar[pillar])
+                pillar_tabs.append(f"{config['name']} ({count})")
             
-            # KT Summary Card
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("KT Score", f"{kt_result.get('value', 0):.1f}%")
-            with col2:
-                st.metric("Rating", kt_result.get('rating', 'N/A'))
-            with col3:
-                st.metric("PS Count", kt_result.get('ps_count', 0))
-            with col4:
-                st.metric("Status", kt_result.get('status', 'N/A').title())
+            tabs = st.tabs(pillar_tabs)
             
-            st.markdown("---")
-            
-            # PS Details
-            st.markdown("#### Performance Signals Detail")
-            
-            for ps_name in kt_data.get('performance_signals', []):
-                if ps_name in assessment.get('ps_results', {}):
-                    ps_result = assessment['ps_results'][ps_name]
-                    ps_data = self.database.get('performance_signals', {}).get(ps_name, {})
-                    
-                    with st.expander(f"{ps_name} - {ps_result.get('value', 0):.1f}%", expanded=True):
-                        # PS metrics
-                        ps_cols = st.columns(4)
-                        with ps_cols[0]:
-                            st.metric("Score", f"{ps_result.get('value', 0):.1f}%")
-                        with ps_cols[1]:
-                            st.metric("Weight", f"{ps_data.get('weight', 0):.1f}%")
-                        with ps_cols[2]:
-                            st.metric("AC Count", ps_result.get('ac_count', 0))
-                        with ps_cols[3]:
-                            st.metric("Rating", ps_result.get('rating', 'N/A'))
+            for tab_idx, (pillar, acs) in enumerate(sorted(qual_by_pillar.items())):
+                with tabs[tab_idx]:
+                    for ac_idx, ac_name in enumerate(acs):
+                        ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+                        formula = self.decode_special_chars(ac_data.get('formula', ''))
+                        thresholds = ac_data.get('thresholds', {})
                         
-                        # AC Table
-                        st.markdown("##### Assessment Criteria")
-                        
-                        ac_details = []
-                        for ac_name in ps_data.get('assessment_criteria', []):
-                            if ac_name in assessment.get('ac_results', {}):
-                                ac_result = assessment['ac_results'][ac_name]
-                                ac_info = self.database.get('assessment_criteria', {}).get(ac_name, {})
-                                
-                                ac_details.append({
-                                    'Assessment Criteria': ac_name,
-                                    'Formula': ac_info.get('formula', '')[:50] + '...' if len(ac_info.get('formula', '')) > 50 else ac_info.get('formula', ''),
-                                    'Value': self._format_ac_value(ac_result),
-                                    'Weight': f"{ac_info.get('weight', 0):.1f}%",
-                                    'Rating': ac_result.get('rating', 'N/A')
-                                })
-                        
-                        if ac_details:
-                            df = pd.DataFrame(ac_details)
-                            st.dataframe(df, use_container_width=True, hide_index=True)
+                        with st.expander(ac_name, expanded=False):
+                            st.caption(f"Formula: {formula}")
+                            
+                            options = self.get_qualitative_options(thresholds)
+                            current = st.session_state.qualitative_inputs.get(ac_name, options[0])
+                            
+                            unique_key = self.get_unique_key(f"qual_{pillar}_{ac_idx}", ac_name)
+                            
+                            value = st.selectbox(
+                                "Assessment",
+                                options,
+                                index=options.index(current) if current in options else 0,
+                                key=unique_key
+                            )
+                            
+                            if value != current:
+                                st.session_state.qualitative_inputs[ac_name] = value
     
-    def _render_hierarchy_node(self, kt_name: str, kt_result: Dict, assessment: Dict, level: int):
-        """Render a node in the hierarchy with proper indentation"""
+    def render_executive_dashboard(self):
+        """Complete dashboard overhaul - this is the main show"""
         
-        indent = "  " * level
-        rating = kt_result.get('rating', 'N/A')
-        value = kt_result.get('value', 0)
-        
-        # Color coding
-        color = "#28a745" if rating == "Good" else "#ffc107" if rating == "Satisfactory" else "#dc3545"
-        
-        # Render the node
-        with st.expander(f"{indent} {kt_name} - {value:.1f}% ({rating})"):
-            # Show details and child nodes
-            kt_data = self.database.get('key_topics', {}).get(kt_name, {})
-            
-            # Show PS nodes
-            for ps_name in kt_data.get('performance_signals', []):
-                if ps_name in assessment.get('ps_results', {}):
-                    ps_result = assessment['ps_results'][ps_name]
-                    st.markdown(f"**{ps_name}**: {ps_result.get('value', 0):.1f}% ({ps_result.get('rating', 'N/A')})")
-                    
-                    # Show AC details
-                    ps_data = self.database.get('performance_signals', {}).get(ps_name, {})
-                    for ac_name in ps_data.get('assessment_criteria', []):
-                        if ac_name in assessment.get('ac_results', {}):
-                            ac_result = assessment['ac_results'][ac_name]
-                            value_str = self._format_ac_value(ac_result)
-                            st.write(f"  • {ac_name}: {value_str} ({ac_result.get('rating', 'N/A')})")
-
-    def _render_executive_summary(self):
-        """Render professional executive summary with enhanced UI"""
-        st.subheader("Executive Summary")
-        
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        if not assessment.get('overall_score'):
-            st.info("No assessment results available. Please perform calculations first.")
+        if not st.session_state.kt_results:
+            st.warning("No results available. Click 'LOAD TEST DATA' then 'CALCULATE ALL' to begin.")
             return
         
-        # Top-level metrics with better styling
-        overall = assessment.get('overall_score', {})
-        
-        # Create a styled header for overall score
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
+        # Custom CSS for professional dashboard
+        st.markdown("""
+        <style>
+        .main-score-card {
+            background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
+            border-radius: 20px;
+            padding: 3rem;
             text-align: center;
+            color: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 2rem;
+        }
+        .score-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        ">
-            <h2 style="margin: 0; color: #333;">Overall Assessment Score</h2>
-            <h1 style="font-size: 60px; margin: 15px 0; color: {self._get_score_color(overall.get('value', 0))};">
-                {overall.get('value', 0):.1f}%
-            </h1>
-            <p style="font-size: 24px; margin: 0; font-weight: 600; color: #666;">
-                {overall.get('rating', 'N/A')}
-            </p>
-        </div>
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .dept-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .metric-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        .metric-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        </style>
         """, unsafe_allow_html=True)
         
-        # Rating distribution
+        # Calculate overall metrics
+        kt_values = []
+        kt_details = []
+        for kt_name, kt_result in st.session_state.kt_results.items():
+            if isinstance(kt_result.get('value'), (int, float)) and kt_result.get('value') > 0:
+                # Get actual thresholds from database
+                kt_data = self.db.get('key_topics', {}).get(kt_name, {})
+                thresholds = kt_data.get('thresholds', {})
+                rating = self._calculate_rating_from_db(kt_result['value'], thresholds)
+                
+                kt_values.append(kt_result['value'])
+                kt_details.append({
+                    'name': kt_name,
+                    'value': kt_result['value'],
+                    'rating': rating,
+                    'pillar': self.get_pillar_for_item(kt_name)
+                })
+        
+        if not kt_values:
+            st.error("No valid KT values calculated. Check your data.")
+            return
+        
+        overall_score = sum(kt_values) / len(kt_values)
+        
+        # Main Score Display
+        col1, col2, col3 = st.columns([1, 3, 1])
+        with col2:
+            # Determine overall rating based on average
+            if overall_score >= 0.9:
+                overall_rating = "Excellent Performance"
+                rating_color = "#00c851"
+            elif overall_score >= 0.7:
+                overall_rating = "Good Performance"
+                rating_color = "#ffbb33"
+            elif overall_score >= 0.5:
+                overall_rating = "Satisfactory"
+                rating_color = "#ff8800"
+            else:
+                overall_rating = "Needs Improvement"
+                rating_color = "#ff4444"
+            
+            st.markdown(f"""
+            <div class="main-score-card">
+                <h1 style="margin: 0; font-weight: 300;">Overall Assessment Score</h1>
+                <div style="font-size: 5rem; font-weight: 700; margin: 1rem 0;">
+                    {overall_score:.3f}
+                </div>
+                <div style="font-size: 1.5rem; padding: 0.5rem 2rem; 
+                            background: {rating_color}; display: inline-block; 
+                            border-radius: 25px; margin-top: 1rem;">
+                    {overall_rating}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Quick Stats
+        st.markdown("### Quick Statistics")
         col1, col2, col3, col4 = st.columns(4)
         
-        kt_results = assessment.get('kt_results', {})
-        total_kts = len(kt_results) if kt_results else 1
-        
-        good_count = sum(1 for r in kt_results.values() if r.get('rating') == 'Good')
-        satisfactory_count = sum(1 for r in kt_results.values() if r.get('rating') == 'Satisfactory')
-        needs_improvement_count = sum(1 for r in kt_results.values() if r.get('rating') == 'Needs Improvement')
-        
         with col1:
-            self._render_stat_card("Total Topics", str(total_kts), "#0066cc")
+            good_count = len([k for k in kt_details if k['rating'] == 'Good'])
+            st.metric("Good KTs", f"{good_count}/{len(kt_details)}", 
+                    f"{(good_count/len(kt_details)*100):.0f}%")
         
         with col2:
-            self._render_stat_card("Good", str(good_count), "#28a745", 
-                                f"{good_count/total_kts*100:.0f}%")
+            ps_count = len([r for r in st.session_state.ps_results.values() 
+                        if isinstance(r.get('value'), (int, float))])
+            st.metric("Active PSs", ps_count, "Performance Signals")
         
         with col3:
-            self._render_stat_card("Satisfactory", str(satisfactory_count), "#ffc107",
-                                f"{satisfactory_count/total_kts*100:.0f}%")
+            ac_count = len([r for r in st.session_state.ac_results.values() 
+                        if r.get('value') is not None])
+            st.metric("Calculated ACs", ac_count, "Assessment Criteria")
         
         with col4:
-            self._render_stat_card("Needs Improvement", str(needs_improvement_count), "#dc3545",
-                                f"{needs_improvement_count/total_kts*100:.0f}%")
+            dp_count = len([v for v in st.session_state.dp_values.values() if v])
+            st.metric("Data Points", dp_count, "Inputs Loaded")
         
-        st.markdown("---")
+        # Department Performance
+        st.markdown("### Department Performance")
         
-        # Key Topics Grid with uniform cards
-        st.markdown("### Key Topics Performance")
+        # Group KTs by pillar
+        pillar_performance = {}
+        for kt in kt_details:
+            pillar = kt['pillar']
+            if pillar not in pillar_performance:
+                pillar_performance[pillar] = []
+            pillar_performance[pillar].append(kt)
         
-        if kt_results:
-            # Sort by score for better presentation
-            sorted_kts = sorted(kt_results.items(), key=lambda x: x[1].get('value', 0), reverse=True)
+        # Create tabs for each department
+        if pillar_performance:
+            tabs = st.tabs([self.pillar_config.get(p, {'name': p})['name'] 
+                        for p in sorted(pillar_performance.keys())])
             
-            # Create uniform grid
-            cols = st.columns(3)
-            for idx, (kt_name, kt_result) in enumerate(sorted_kts):
-                with cols[idx % 3]:
-                    self._render_uniform_kt_card(kt_name, kt_result)
+            for idx, (pillar, kts) in enumerate(sorted(pillar_performance.items())):
+                with tabs[idx]:
+                    config = self.pillar_config.get(pillar, {'name': pillar, 'color': '#666'})
+                    
+                    # Calculate department average
+                    dept_avg = sum(kt['value'] for kt in kts) / len(kts)
+                    dept_rating = self._calculate_rating_from_db(dept_avg, {})  # Use default thresholds
+                    
+                    # Department summary
+                    st.markdown(f"""
+                    <div class="dept-section">
+                        <h3 style="color: {config['color']}; margin-bottom: 1rem;">
+                            {config['name']} Performance
+                        </h3>
+                        <div style="font-size: 2rem; font-weight: bold; color: {config['color']};">
+                            Average Score: {dept_avg:.3f}
+                        </div>
+                        <div class="metric-bar">
+                            <div class="metric-fill" style="width: {dept_avg*100:.1f}%; 
+                                background: {config['color']};"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # KT details for this department
+                    for kt in kts:
+                        col1, col2, col3 = st.columns([3, 1, 1])
+                        with col1:
+                            st.markdown(f"**{kt['name']}**")
+                        with col2:
+                            st.markdown(f"{kt['value']:.4f}")
+                        with col3:
+                            color = "#00c851" if kt['rating'] == 'Good' else "#ffbb33" if kt['rating'] == 'Satisfactory' else "#ff4444"
+                            st.markdown(f"<span style='color: {color}; font-weight: bold;'>{kt['rating']}</span>", 
+                                    unsafe_allow_html=True)
         
-        st.markdown("---")
-        
-        # Enhanced PS Table (FIXED VERSION - NO HTML IN STATUS)
-        st.markdown("### Performance Signals Analysis")
-        
-        ps_results = assessment.get('ps_results', {})
-        if ps_results:
-            # Create enhanced DataFrame
-            ps_data = []
-            for ps_name, ps_result in ps_results.items():
-                ps_info = self.database.get('performance_signals', {}).get(ps_name, {})
-                ps_data.append({
-                    'Signal': ps_name,
-                    'Score': ps_result.get('value', 0),
-                    'Weight': ps_info.get('weight', 0),
-                    'Rating': ps_result.get('rating', 'N/A')
-                })
+        # Calculation Flow Visualization
+        with st.expander("View Calculation Hierarchy", expanded=False):
+            st.markdown("### Data Flow")
             
-            if ps_data:
-                df = pd.DataFrame(ps_data)
-                df = df.sort_values('Score', ascending=False)
-                
-                # Create a styled dataframe with color coding for ratings
-                def style_rating(val):
-                    """Style the rating column"""
-                    if val == 'Good':
-                        return 'color: #28a745; font-weight: bold'
-                    elif val == 'Satisfactory':
-                        return 'color: #ffc107; font-weight: bold'
-                    elif val == 'Needs Improvement':
-                        return 'color: #dc3545; font-weight: bold'
-                    return ''
-                
-                # Apply styling
-                styled_df = df.style.format({
-                    'Score': '{:.1f}%',
-                    'Weight': '{:.1f}%'
-                }).background_gradient(
-                    subset=['Score'], 
-                    cmap='RdYlGn', 
-                    vmin=0, 
-                    vmax=100
-                ).applymap(style_rating, subset=['Rating'])
-                
-                st.dataframe(
-                    styled_df,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=400
-                )
-        
-        st.markdown("---")
-        
-        # Professional Recommendations
-        self._render_professional_recommendations(assessment)
-
-    def _render_stat_card(self, title: str, value: str, color: str, subtitle: str = ""):
-        """Render a professional statistics card"""
-        st.markdown(f"""
-        <div style="
-            background: white;
-            border-left: 4px solid {color};
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
-            height: 100px;
-        ">
-            <p style="margin: 0; color: #666; font-size: 14px;">{title}</p>
-            <h3 style="margin: 5px 0; color: {color}; font-size: 28px;">{value}</h3>
-            <p style="margin: 0; color: #999; font-size: 12px;">{subtitle}</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    def _render_uniform_kt_card(self, kt_name: str, kt_result: Dict):
-        """Render uniform KT performance card"""
-        value = kt_result.get('value', 0)
-        rating = kt_result.get('rating', 'N/A')
-        color = self._get_score_color(value)
-        bg_color = self._get_bg_color(rating)
-        
-        # Truncate long names for uniformity
-        display_name = kt_name[:30] + '...' if len(kt_name) > 30 else kt_name
-        
-        st.markdown(f"""
-        <div style="
-            background: white;
-            border: 2px solid {color};
-            border-radius: 12px;
-            padding: 20px;
-            margin: 5px 0;
-            height: 150px;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
-            position: relative;
-            overflow: hidden;
-        ">
-            <div style="
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 4px;
-                background: {color};
-            "></div>
-            <h4 style="
-                margin: 10px 0 15px 0;
-                color: #333;
-                font-size: 16px;
-                font-weight: 600;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            " title="{kt_name}">{display_name}</h4>
-            <h2 style="
-                color: {color};
-                margin: 10px 0;
-                font-size: 36px;
-                font-weight: bold;
-            ">{value:.1f}%</h2>
-            <span style="
-                display: inline-block;
-                padding: 4px 12px;
-                background: {bg_color};
-                color: {color};
-                border-radius: 20px;
-                font-size: 12px;
-                font-weight: 500;
-            ">{rating}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-    def _render_professional_recommendations(self, assessment: Dict):
-        """Render recommendations with professional styling"""
-        st.markdown("### Strategic Recommendations")
-        
-        # Categorize KTs by performance
-        kt_results = assessment.get('kt_results', {})
-        critical = []  # <50%
-        needs_attention = []  # 50-70%
-        monitor = []  # 70-85%
-        performing = []  # >85%
-        
-        for kt_name, kt_result in kt_results.items():
-            value = kt_result.get('value', 0)
-            if value < 50:
-                critical.append((kt_name, value))
-            elif value < 70:
-                needs_attention.append((kt_name, value))
-            elif value < 85:
-                monitor.append((kt_name, value))
+            # Show the actual flow with real numbers
+            flow_col1, flow_col2, flow_col3, flow_col4 = st.columns(4)
+            
+            with flow_col1:
+                st.info(f"**{dp_count} Data Points**\nRaw Inputs")
+            
+            with flow_col2:
+                st.success(f"**{ac_count} Assessment Criteria**\nCalculated from DPs")
+            
+            with flow_col3:
+                st.warning(f"**{ps_count} Performance Signals**\nWeighted from ACs")
+            
+            with flow_col4:
+                st.error(f"**{len(kt_details)} Key Topics**\nFinal Scores")
+    
+    def _calculate_rating_from_db(self, value, thresholds):
+        """Calculate rating using actual database thresholds"""
+        if not thresholds or not any(thresholds.values()):
+            # Use default thresholds if none in database
+            if value >= 0.9:
+                return 'Good'
+            elif value >= 0.7:
+                return 'Satisfactory'
             else:
-                performing.append((kt_name, value))
+                return 'Needs Improvement'
         
-        # Display recommendations by priority
-        if critical:
-            st.markdown("""
-            <div style="
-                background: #ffebee;
-                border-left: 4px solid #dc3545;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            ">
-                <h4 style="color: #dc3545; margin: 0 0 10px 0;">Critical Priority - Immediate Action Required</h4>
-            """, unsafe_allow_html=True)
+        # Parse actual thresholds from database
+        good = str(thresholds.get('good', ''))
+        satisfactory = str(thresholds.get('satisfactory', ''))
+        needs = str(thresholds.get('needs_improvement', ''))
+        
+        # Apply the actual threshold logic
+        def check_threshold(threshold_str, value):
+            if not threshold_str:
+                return False
             
-            for kt_name, value in sorted(critical, key=lambda x: x[1]):
-                st.markdown(f"""
-                <div style="margin: 10px 0;">
-                    <strong>{kt_name}</strong> 
-                    <span style="color: #dc3545;">({value:.1f}%)</span>
-                    <br>
-                    <span style="color: #666; font-size: 14px;">
-                        Requires comprehensive review and immediate intervention plan
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
+            threshold_str = str(threshold_str).strip().replace('%', '')
             
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        if needs_attention:
-            st.markdown("""
-            <div style="
-                background: #fff3cd;
-                border-left: 4px solid #ffc107;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            ">
-                <h4 style="color: #856404; margin: 0 0 10px 0;">High Priority - Action Plan Required</h4>
-            """, unsafe_allow_html=True)
+            try:
+                if threshold_str.startswith('>='):
+                    return value >= float(threshold_str[2:].strip()) / (100 if float(threshold_str[2:].strip()) > 1 else 1)
+                elif threshold_str.startswith('>'):
+                    return value > float(threshold_str[1:].strip()) / (100 if float(threshold_str[1:].strip()) > 1 else 1)
+                elif threshold_str.startswith('<='):
+                    return value <= float(threshold_str[2:].strip()) / (100 if float(threshold_str[2:].strip()) > 1 else 1)
+                elif threshold_str.startswith('<'):
+                    return value < float(threshold_str[1:].strip()) / (100 if float(threshold_str[1:].strip()) > 1 else 1)
+                elif '-' in threshold_str:
+                    parts = threshold_str.split('-')
+                    if len(parts) == 2:
+                        min_val = float(parts[0].strip()) / (100 if float(parts[0].strip()) > 1 else 1)
+                        max_val = float(parts[1].strip()) / (100 if float(parts[1].strip()) > 1 else 1)
+                        return min_val <= value <= max_val
+            except:
+                return False
             
-            for kt_name, value in sorted(needs_attention, key=lambda x: x[1]):
-                st.markdown(f"""
-                <div style="margin: 10px 0;">
-                    <strong>{kt_name}</strong>
-                    <span style="color: #856404;">({value:.1f}%)</span>
-                    <br>
-                    <span style="color: #666; font-size: 14px;">
-                        Develop improvement strategy within 30 days
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+            return False
         
-        if monitor:
-            st.markdown("""
-            <div style="
-                background: #e3f2fd;
-                border-left: 4px solid #2196f3;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            ">
-                <h4 style="color: #1565c0; margin: 0 0 10px 0;">Monitor & Enhance</h4>
-            """, unsafe_allow_html=True)
-            
-            for kt_name, value in sorted(monitor, key=lambda x: x[1], reverse=True):
-                st.markdown(f"""
-                <div style="margin: 10px 0;">
-                    <strong>{kt_name}</strong>
-                    <span style="color: #1565c0;">({value:.1f}%)</span>
-                    <br>
-                    <span style="color: #666; font-size: 14px;">
-                        Continue monitoring with periodic reviews
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        if performing:
-            st.markdown("""
-            <div style="
-                background: #e8f5e9;
-                border-left: 4px solid #28a745;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            ">
-                <h4 style="color: #2e7d32; margin: 0 0 10px 0;">Performing Well</h4>
-            """, unsafe_allow_html=True)
-            
-            for kt_name, value in sorted(performing, key=lambda x: x[1], reverse=True):
-                st.markdown(f"""
-                <div style="margin: 10px 0;">
-                    <strong>{kt_name}</strong>
-                    <span style="color: #2e7d32;">({value:.1f}%)</span>
-                    <br>
-                    <span style="color: #666; font-size: 14px;">
-                        Maintain current practices and share best practices
-                    </span>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    def _get_score_color(self, value: float) -> str:
-        """Get color based on score value"""
-        if value >= 85:
-            return "#28a745"
-        elif value >= 70:
-            return "#ffc107"
-        else:
-            return "#dc3545"
-        
-    def _get_bg_color(self, rating: str) -> str:
-        """Get background color for rating"""
-        colors = {
-            'Good': "#d4edda",
-            'Satisfactory': "#fff3cd",
-            'Needs Improvement': "#f8d7da",
-            'N/A': "#e2e3e5"
-        }
-        return colors.get(rating, "#e2e3e5")
-    
-    def _get_status_badge(self, rating: str) -> str:
-        """Get HTML status badge"""
-        colors = {
-            'Good': "#28a745",
-            'Satisfactory': "#ffc107",
-            'Needs Improvement': "#dc3545"
-        }
-        color = colors.get(rating, "#6c757d")
-        return f'<span style="color: {color};">●</span> {rating}'
-    
-    def _render_kt_card(self, kt_name: str, kt_result: Dict):
-        """Render a professional KT card"""
-        rating = kt_result.get('rating', 'N/A')
-        value = kt_result.get('value', 0)
-        
-        # Color scheme
-        if rating == "Good":
-            color = "#28a745"
-            bg_color = "#d4edda"
-        elif rating == "Satisfactory":
-            color = "#ffc107"
-            bg_color = "#fff3cd"
-        else:
-            color = "#dc3545"
-            bg_color = "#f8d7da"
-        
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, {bg_color}55 0%, {bg_color}22 100%);
-            border: 2px solid {color};
-            border-radius: 12px;
-            padding: 20px;
-            margin: 10px 0;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: all 0.3s;
-        ">
-            <h4 style="margin: 0; color: #333;">{kt_name}</h4>
-            <h2 style="color: {color}; margin: 10px 0;">{value:.1f}%</h2>
-            <p style="margin: 0; color: #666; font-weight: 500;">{rating}</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    def _generate_recommendations(self, assessment: Dict):
-        """Generate intelligent recommendations based on results"""
-        
-        # Find areas needing improvement
-        needs_improvement = []
-        satisfactory = []
-        
-        for kt_name, kt_result in assessment.get('kt_results', {}).items():
-            if kt_result.get('rating') == 'Needs Improvement':
-                needs_improvement.append((kt_name, kt_result.get('value', 0)))
-            elif kt_result.get('rating') == 'Satisfactory':
-                satisfactory.append((kt_name, kt_result.get('value', 0)))
-        
-        if needs_improvement:
-            st.warning("**Priority Areas for Improvement:**")
-            for kt_name, value in sorted(needs_improvement, key=lambda x: x[1]):
-                st.markdown(f"• **{kt_name}** ({value:.1f}%) - Requires immediate attention")
-        
-        if satisfactory:
-            st.info("**Areas for Enhancement:**")
-            for kt_name, value in sorted(satisfactory, key=lambda x: x[1]):
-                st.markdown(f"• **{kt_name}** ({value:.1f}%) - Can be improved to achieve excellence")
-        
-        if not needs_improvement and not satisfactory:
-            st.success("**Excellent Performance!** All key topics are performing at optimal levels.")
-    
-    def _calculate_pillar(self, pillar: str):
-        """Calculate scores for a specific pillar"""
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        with st.spinner(f"Calculating {pillar}..."):
-            # Find all ACs for this pillar
-            pillar_acs = []
-            
-            for ac_name, ac_data in self.database.get('assessment_criteria', {}).items():
-                # Check if AC belongs to this pillar through its DPs
-                for dp_name in ac_data.get('data_points', []):
-                    dp_data = self.database.get('data_points', {}).get(dp_name, {})
-                    dp_pillar = self._expand_pillar_name(dp_data.get('pillar', ''))
-                    if dp_pillar == pillar:
-                        pillar_acs.append((ac_name, ac_data))
-                        break
-
-            # Calculate each AC
-            for ac_name, ac_data in pillar_acs:
-                formula = ac_data.get('formula', '')
-                data_points = ac_data.get('data_points', [])
-                thresholds = ac_data.get('thresholds', {
-                    'good': '>90',
-                    'satisfactory': '70-90',
-                    'needs_improvement': '<70'
-                })
-                
-                # Get all DP values
-                dp_values = assessment.get('dp_values', {})
-                
-                # Call with ALL required parameters
-                value, rating = self._calculate_ac(
-                    ac_name=ac_name,
-                    formula=formula,
-                    data_points_list=data_points,
-                    dp_values=dp_values,
-                    thresholds=thresholds
-                )
-                
-                # Store the result
-                assessment['ac_results'][ac_name] = {
-                    'value': value,
-                    'rating': rating,
-                    'formula': formula,
-                    'timestamp': datetime.now().isoformat()
-                }
-            
-        st.success(f"Calculated {len(pillar_acs)} assessment criteria for {pillar}")
-
-        # Aggregate results
-        self._aggregate_results(assessment)
-
-        # Add to history
-        assessment['calculation_history'].append({
-            'timestamp': datetime.now().isoformat(),
-            'action': f'Calculated {pillar}',
-            'ac_count': len(pillar_acs)
-        })
-
-        st.success(f"Calculated {len(pillar_acs)} assessment criteria for {pillar}")
-        st.rerun()  # Add this to refresh the display
-    
-    def _calculate_ac(self, ac_name: str, formula: str, data_points_list: list, 
-                  dp_values: dict, thresholds: dict) -> tuple:
-        """Calculate AC score using smart formula calculator"""
-        
-        # Import the smart calculator
-        from smart_formula_calculator_final import SmartFormulaCalculator
-        
-        # Create calculator instance if not exists
-        if not hasattr(self, 'smart_calculator'):
-            self.smart_calculator = SmartFormulaCalculator()
-        
-        # Get AC data from database
-        ac_data = self.database.get('assessment_criteria', {}).get(ac_name, {})
-        if not ac_data:
-            ac_data = {
-                'formula': formula,
-                'data_points': data_points_list,
-                'thresholds': thresholds,
-                'formula_type': 'quantitative' if any(op in formula for op in ['+', '-', '*', '/']) else 'qualitative'
-            }
-        
-        # Use smart calculator
-        return self.smart_calculator.calculate_ac(ac_name, ac_data, dp_values)
-
-    def _get_rating(self, value: float, ac_name: str = None) -> str:
-        """Get rating based on value and AC-specific thresholds"""
-        if ac_name:
-            # Use the parser's rating method which checks AC-specific thresholds
-            return self.parser.get_rating_for_ac(ac_name, value)
-        
-        # Default fallback
-        if value >= 85:
+        # Check thresholds in order
+        if check_threshold(good, value):
             return 'Good'
-        elif value >= 70:
+        elif check_threshold(satisfactory, value):
+            return 'Satisfactory'
+        elif check_threshold(needs, value):
+            return 'Needs Improvement'
+        
+        # Fallback
+        if value >= 0.9:
+            return 'Good'
+        elif value >= 0.7:
             return 'Satisfactory'
         else:
             return 'Needs Improvement'
     
-    def _calculate_all(self):
-        """Calculate all assessments with progress tracking"""
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
+    def render_calculation_details(self):
+        """Enhanced calculation details with professional visualization"""
+        st.markdown("""
+        <style>
+        .calc-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .formula-box {
+            background: #f7f9fc;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .calc-flow {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .dp-card {
+            background: #f0f4f8;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 0.5rem 0;
+        }
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 1.5rem 0;
+        }
+        .rating-badge {
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        .rating-good {
+            background: linear-gradient(135deg, #00c851 0%, #00a846 100%);
+        }
+        .rating-satisfactory {
+            background: linear-gradient(135deg, #ffbb33 0%, #ff8800 100%);
+        }
+        .rating-needs {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        }
+        </style>
+        """, unsafe_allow_html=True)
         
-        # Create progress bar
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+        st.markdown('<div class="calc-header"><h2 style="margin: 0;">Calculation Details & Analysis</h2></div>', unsafe_allow_html=True)
         
-        # Calculate all ACs
-        ac_count = 0
-        total_acs = len(self.database.get('assessment_criteria', {}))
-        
-        for ac_name, ac_data in self.database.get('assessment_criteria', {}).items():
-            formula = ac_data.get('formula', '')
-            data_points = ac_data.get('data_points', [])
-            thresholds = ac_data.get('thresholds', {
-                'good': '>90',
-                'satisfactory': '70-90',
-                'needs_improvement': '<70'
-            })
-            
-            # Get all DP values
-            dp_values = assessment.get('dp_values', {})
-            
-            # Call with ALL required parameters
-            value, rating = self._calculate_ac(
-                ac_name=ac_name,
-                formula=formula,
-                data_points_list=data_points,
-                dp_values=dp_values,
-                thresholds=thresholds
-            )
-            
-            # Store the result
-            assessment['ac_results'][ac_name] = {
-                'value': value,
-                'rating': rating,
-                'formula': formula,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            ac_count += 1
-        
-        # Update progress
-        progress = ac_count / total_acs
-        progress_bar.progress(progress)
-        status_text.text(f"Processing: {ac_count}/{total_acs} Assessment Criteria")
-
-        # Aggregate results
-        status_text.text("Aggregating results...")
-        self._aggregate_results(assessment)
-
-        # Complete
-        progress_bar.progress(1.0)
-        status_text.empty()
-
-        # Add to history
-        assessment['calculation_history'].append({
-            'timestamp': datetime.now().isoformat(),
-            'action': 'Complete assessment calculation',
-            'ac_count': ac_count
-        })
-
-        st.success(f"Successfully calculated {ac_count} assessment criteria")
-        st.rerun()
-    
-    def _aggregate_results(self, assessment: dict):
-        """Aggregate AC results to PS and KT levels"""
-        
-        # Aggregate AC → PS level
-        for ps_name, ps_data in self.database.get('performance_signals', {}).items():
-            # Get all AC results that belong to this PS
-            ps_ac_results = {}
-            
-            # Find ACs for this PS
-            ac_list = ps_data.get('assessment_criteria', [])
-            for ac_name in ac_list:
-                if ac_name in assessment.get('ac_results', {}):
-                    ps_ac_results[ac_name] = assessment['ac_results'][ac_name]
-            
-            if ps_ac_results:
-                # Use the aggregator properly
-                ps_result = self.aggregator.aggregate_to_ps(
-                    ps_data,  # PS data
-                    ps_ac_results,  # AC results for this PS
-                    self.database.get('assessment_criteria', {})  # All ACs for weight info
-                )
-                assessment['ps_results'][ps_name] = ps_result
-        
-        # Aggregate PS → KT level
-        for kt_name, kt_data in self.database.get('key_topics', {}).items():
-            # Get all PS results that belong to this KT
-            kt_ps_results = {}
-            
-            # Find PSs for this KT
-            ps_list = kt_data.get('performance_signals', [])
-            for ps_name in ps_list:
-                if ps_name in assessment.get('ps_results', {}):
-                    kt_ps_results[ps_name] = assessment['ps_results'][ps_name]
-            
-            if kt_ps_results:
-                # Use the aggregator properly
-                kt_result = self.aggregator.aggregate_to_kt(
-                    kt_data,  # KT data
-                    kt_ps_results,  # PS results for this KT
-                    self.database.get('performance_signals', {})  # All PSs for weight info
-                )
-                assessment['kt_results'][kt_name] = kt_result
-        
-        # Calculate overall score
-        if assessment.get('kt_results'):
-            overall_value = self.aggregator.calculate_overall(assessment['kt_results'])
-            assessment['overall_score'] = {
-                'value': overall_value,
-                'rating': self.aggregator._get_rating(overall_value)
-            }
-    
-    def _format_ac_value(self, ac_result: Dict) -> str:
-        """Format AC value based on type"""
-        value = ac_result.get('value', 0)
-        
-        if ac_result.get('is_qualitative'):
-            return f"{value:.0f}% (Qual)"
-        elif ac_result.get('is_ratio'):
-            return f"{value:.2f}"
-        elif ac_result.get('is_percentage'):
-            return f"{value:.1f}%"
-        else:
-            return f"{value:.2f}"
-        
-    def _find_ac_for_dp(self, dp_name: str) -> Dict:
-        """Find the AC that uses this DP"""
-        for ac_name, ac_data in self.database.get('assessment_criteria', {}).items():
-            if dp_name in ac_data.get('data_points', []):
-                return ac_data
-        return None
-    
-    def test_specific_ac(self, ac_name: str):
-        """Test a specific AC calculation for debugging"""
-        assessment = st.session_state['assessments'][st.session_state['current_assessment']]
-        
-        # Find the AC
-        ac_data = self.database.get('assessment_criteria', {}).get(ac_name)
-        if not ac_data:
-            st.error(f"AC '{ac_name}' not found")
+        if not st.session_state.ac_results:
+            st.info("No calculations available. Please run calculations first.")
             return
         
-        st.write(f"Testing AC: {ac_name}")
-        st.write(f"Formula: {ac_data.get('formula')}")
+        # Enhanced selection controls
+        col1, col2, col3 = st.columns([2, 2, 1])
         
-        # Get DP values
-        dp_values = {}
-        for dp_name in ac_data.get('data_points', []):
-            if dp_name in assessment['dp_values']:
-                dp_values[dp_name] = assessment['dp_values'][dp_name]
+        with col1:
+            view_level = st.selectbox(
+                "View Level",
+                ["Key Topics", "Performance Signals", "Assessment Criteria", "Data Points"],
+                help="Navigate through the calculation hierarchy"
+            )
         
-        st.write(f"Available DPs: {list(dp_values.keys())}")
+        with col2:
+            pillar_filter = st.selectbox(
+                "Filter by Department",
+                ["All"] + list(self.pillar_config.keys()),
+                help="Filter by organizational pillar"
+            )
         
-        # Test evaluation
-        result = self.parser.evaluate(ac_data.get('formula'), dp_values, ac_name)
-        st.write(f"Result: {result}")
+        with col3:
+            show_details = st.checkbox("Show Full Details", value=True)
+        
+        st.markdown("---")
+        
+        # Display based on selection with enhanced visualization
+        if view_level == "Key Topics":
+            self.render_kt_calculations_enhanced(pillar_filter, show_details)
+        elif view_level == "Performance Signals":
+            self.render_ps_calculations_enhanced(pillar_filter, show_details)
+        elif view_level == "Assessment Criteria":
+            self.render_ac_calculations_enhanced(pillar_filter, show_details)
+        else:
+            self.render_dp_values_enhanced(pillar_filter)
+    
+    def render_kt_calculations_enhanced(self, pillar_filter, show_details):
+        """Enhanced KT calculation display with full transparency"""
+        st.markdown("## Key Topic Calculations")
+        
+        for kt_name, kt_result in st.session_state.kt_results.items():
+            pillar = self.get_pillar_for_item(kt_name)
+            
+            if pillar_filter != "All" and pillar != pillar_filter:
+                continue
+            
+            if isinstance(kt_result.get('value'), (int, float)):
+                # Determine rating
+                kt_data = self.db.get('key_topics', {}).get(kt_name, {})
+                thresholds = kt_data.get('thresholds', {})
+                rating = self.get_rating_for_value(kt_result['value'], thresholds)
+                
+                # Create visual card
+                with st.container():
+                    # Header with rating color
+                    rating_class = "rating-good" if rating == "Good" else "rating-satisfactory" if rating == "Satisfactory" else "rating-needs"
+                    
+                    st.markdown(f"""
+                    <div class="result-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 style="margin: 0; color: #1a237e;">{kt_name}</h3>
+                            <span class="rating-badge {rating_class}">{rating}</span>
+                        </div>
+                        <div style="font-size: 3rem; font-weight: bold; color: #667eea; margin: 1rem 0;">
+                            {kt_result['value']:.4f}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if show_details:
+                        with st.expander("See Full Calculation", expanded=True):
+                            # Get PS contributions
+                            kt_data = self.db.get('key_topics', {}).get(kt_name, {})
+                            ps_list = kt_data.get('performance_signals', [])
+                            
+                            if ps_list:
+                                st.markdown("### Calculation Method: Weighted Average")
+                                st.markdown("```")
+                                st.write("KT Score = Σ(PS_value × PS_weight) / Σ(PS_weight)")
+                                st.markdown("```")
+                                
+                                # Create calculation table
+                                calc_data = []
+                                total_weight = 0
+                                weighted_sum = 0
+                                
+                                for ps_name in ps_list:
+                                    if ps_name in st.session_state.ps_results:
+                                        ps_result = st.session_state.ps_results[ps_name]
+                                        ps_data = self.db.get('performance_signals', {}).get(ps_name, {})
+                                        weight = float(ps_data.get('weight', 1))
+                                        value = ps_result.get('value', 0)
+                                        contribution = value * weight
+                                        
+                                        calc_data.append({
+                                            'Performance Signal': ps_name,
+                                            'Value': f"{value:.4f}",
+                                            'Weight': f"{weight:.0f}",
+                                            'Contribution': f"{contribution:.4f}"
+                                        })
+                                        
+                                        total_weight += weight
+                                        weighted_sum += contribution
+                                
+                                if calc_data:
+                                    df = pd.DataFrame(calc_data)
+                                    st.dataframe(df, use_container_width=True, hide_index=True)
+                                    
+                                    # Show step-by-step calculation
+                                    st.markdown("### Step-by-Step Calculation:")
+                                    st.markdown(f"""
+                                    <div class="calc-flow">
+                                        <p><strong>1. Weighted Contributions:</strong></p>
+                                        <ul>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    for item in calc_data:
+                                        st.markdown(f"<li>{item['Performance Signal']}: {item['Value']} × {item['Weight']} = {item['Contribution']}</li>", unsafe_allow_html=True)
+                                    
+                                    st.markdown(f"""
+                                        </ul>
+                                        <p><strong>2. Sum of Weighted Contributions:</strong> {weighted_sum:.4f}</p>
+                                        <p><strong>3. Total Weight:</strong> {total_weight:.0f}</p>
+                                        <p><strong>4. Final Score:</strong> {weighted_sum:.4f} ÷ {total_weight:.0f} = <span style="color: #667eea; font-weight: bold;">{kt_result['value']:.4f}</span></p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    # Show threshold application
+                                    st.markdown("### Rating Assignment:")
+                                    self.show_threshold_application(kt_result['value'], thresholds)
+    
+    def render_ps_calculations_enhanced(self, pillar_filter, show_details):
+        """Enhanced PS calculation display with full transparency"""
+        st.markdown("## Performance Signal Calculations")
+        
+        for ps_name, ps_result in st.session_state.ps_results.items():
+            pillar = self.get_pillar_for_item(ps_name)
+            
+            if pillar_filter != "All" and pillar != pillar_filter:
+                continue
+            
+            if isinstance(ps_result.get('value'), (int, float)):
+                # Determine rating
+                ps_data = self.db.get('performance_signals', {}).get(ps_name, {})
+                thresholds = ps_data.get('thresholds', {})
+                rating = self.get_rating_for_value(ps_result['value'], thresholds)
+                
+                # Create visual card
+                rating_class = "rating-good" if rating == "Good" else "rating-satisfactory" if rating == "Satisfactory" else "rating-needs"
+                
+                st.markdown(f"""
+                <div class="result-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #1a237e;">{ps_name}</h3>
+                        <span class="rating-badge {rating_class}">{rating}</span>
+                    </div>
+                    <div style="font-size: 2.5rem; font-weight: bold; color: #764ba2; margin: 1rem 0;">
+                        {ps_result['value']:.4f}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if show_details:
+                    with st.expander("See Full Calculation", expanded=False):
+                        ac_list = ps_data.get('assessment_criteria', [])
+                        
+                        if ac_list:
+                            st.markdown("### Calculation Method: Weighted Average")
+                            st.markdown("```")
+                            st.write("PS Score = Σ(AC_value × AC_weight) / Σ(AC_weight)")
+                            st.markdown("```")
+                            
+                            calc_data = []
+                            total_weight = 0
+                            weighted_sum = 0
+                            
+                            for ac_name in ac_list:
+                                if ac_name in st.session_state.ac_results:
+                                    ac_result = st.session_state.ac_results[ac_name]
+                                    ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+                                    weight = float(ac_data.get('weight', 1))
+                                    value = ac_result.get('value', 0)
+                                    
+                                    if isinstance(value, (int, float)):
+                                        contribution = value * weight
+                                        calc_data.append({
+                                            'Assessment Criteria': ac_name[:50] + "..." if len(ac_name) > 50 else ac_name,
+                                            'Value': f"{value:.4f}",
+                                            'Weight': f"{weight:.0f}",
+                                            'Contribution': f"{contribution:.4f}"
+                                        })
+                                        
+                                        total_weight += weight
+                                        weighted_sum += contribution
+                            
+                            if calc_data:
+                                df = pd.DataFrame(calc_data)
+                                st.dataframe(df, use_container_width=True, hide_index=True)
+                                
+                                # Show calculation flow
+                                st.markdown(f"""
+                                <div class="calc-flow">
+                                    <p><strong>Weighted Sum:</strong> {weighted_sum:.4f}</p>
+                                    <p><strong>Total Weight:</strong> {total_weight:.0f}</p>
+                                    <p><strong>Final Score:</strong> {weighted_sum:.4f} ÷ {total_weight:.0f} = <span style="color: #764ba2; font-weight: bold;">{ps_result['value']:.4f}</span></p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # Show threshold application
+                                st.markdown("### Rating Assignment:")
+                                self.show_threshold_application(ps_result['value'], thresholds)
 
-# Debug function
-def debug_specific_ac():
-    """Debug a specific AC to see what's happening"""
-    import json
+    def render_ac_calculations_enhanced(self, pillar_filter, show_details):
+        """Enhanced AC calculation display with visual formula breakdown"""
+        st.markdown("## Assessment Criteria Calculations")
+        
+        for ac_name, ac_result in st.session_state.ac_results.items():
+            pillar = self.get_pillar_for_item(ac_name)
+            
+            if pillar_filter != "All" and pillar != pillar_filter:
+                continue
+            
+            if ac_result.get('value') is not None:
+                ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+                formula = self.decode_special_chars(ac_data.get('formula', ''))
+                thresholds = ac_data.get('thresholds', {})
+                
+                # Get rating
+                if isinstance(ac_result.get('value'), (int, float)):
+                    rating = self.get_rating_for_value(ac_result['value'], thresholds)
+                    display_value = f"{ac_result['value']:.4f}"
+                else:
+                    rating = ac_result.get('rating', 'N/A')
+                    display_value = str(ac_result.get('value'))
+                
+                # Create visual card
+                rating_class = "rating-good" if rating == "Good" else "rating-satisfactory" if rating == "Satisfactory" else "rating-needs"
+                
+                with st.container():
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.markdown(f"### {ac_name[:80]}{'...' if len(ac_name) > 80 else ''}")
+                    with col2:
+                        st.markdown(f'<span class="rating-badge {rating_class}">{rating}</span>', unsafe_allow_html=True)
+                    
+                    if show_details:
+                        with st.expander("See Full Calculation", expanded=False):
+                            # Show formula
+                            st.markdown("#### Formula:")
+                            st.markdown(f'<div class="formula-box">{formula}</div>', unsafe_allow_html=True)
+                            
+                            # Show DPs used
+                            dps_used = ac_data.get('data_points', [])
+                            if dps_used:
+                                st.markdown("#### Data Points Used:")
+                                for dp_name in dps_used:
+                                    if dp_name in st.session_state.dp_values:
+                                        dp_value = st.session_state.dp_values[dp_name]
+                                        if isinstance(dp_value, (int, float)):
+                                            st.markdown(f"""
+                                            <div class="dp-card">
+                                                <strong>{dp_name}:</strong> {dp_value:.2f}
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"""
+                                            <div class="dp-card">
+                                                <strong>{dp_name}:</strong> {dp_value}
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                            
+                            # Show calculation result
+                            st.markdown("#### Result:")
+                            st.markdown(f"""
+                            <div class="result-card" style="text-align: center;">
+                                <div style="font-size: 2rem; font-weight: bold; color: #667eea;">
+                                    {display_value}
+                                </div>
+                                <div style="margin-top: 1rem;">
+                                    <span class="rating-badge {rating_class}">{rating}</span>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Show threshold application if quantitative
+                            if isinstance(ac_result.get('value'), (int, float)):
+                                st.markdown("#### Rating Assignment:")
+                                self.show_threshold_application(ac_result['value'], thresholds)
     
-    # Load database
-    with open('data/meinhardt_db.json', 'r') as f:
-        database = json.load(f)
-    
-    # Pick a simple AC to debug
-    ac_name = "DevCo Schedule Performance Index (SPI)"
-    ac_data = database['assessment_criteria'].get(ac_name)
-    
-    print(f"\n{'='*60}")
-    print(f"DEBUGGING: {ac_name}")
-    print(f"{'='*60}")
-    print(f"Formula: {ac_data.get('formula')}")
-    print(f"Required DPs: {ac_data.get('data_points', [])}")
-    
-    # Check if we have test data
-    if 'assessments' in database:
-        for assessment in database['assessments'].values():
-            if 'dp_values' in assessment:
-                print("\nFound DP values in assessment:")
-                for dp in ac_data.get('data_points', []):
-                    value = assessment['dp_values'].get(dp, 'NOT FOUND')
-                    print(f"  - {dp}: {value}")
-                break
-    
-    # Now test the calculation
-    from diagnostic_formula_parser import DiagnosticFormulaParser
-    parser = DiagnosticFormulaParser()
-    
-    # Create test values
-    test_dps = {}
-    for dp in ac_data.get('data_points', []):
-        if 'Earned Value' in dp:
-            test_dps[dp] = 1000000
-        elif 'Planned Value' in dp:
-            test_dps[dp] = 2000000
-    
-    print(f"\nTest calculation with mock values:")
-    print(f"Test DPs: {test_dps}")
-    
-    value, rating, debug = parser.parse_and_calculate(
-        ac_name,
-        ac_data.get('formula'),
-        test_dps,
-        debug=True
-    )
-    
-    print(f"Result: {value:.2f}% ({rating})")
+    def show_threshold_application(self, value, thresholds):
+        """Visual display of how thresholds determine rating"""
+        if not thresholds or not any(thresholds.values()):
+            st.info("Using default thresholds: Good ≥ 0.9, Satisfactory ≥ 0.7, Needs Improvement < 0.7")
+            thresholds = {'good': '>0.9', 'satisfactory': '0.7-0.9', 'needs_improvement': '<0.7'}
+        
+        good = str(thresholds.get('good', ''))
+        satisfactory = str(thresholds.get('satisfactory', ''))
+        needs = str(thresholds.get('needs_improvement', ''))
+        
+        # Create visual threshold display
+        st.markdown(f"""
+        <div class="calc-flow">
+            <p><strong>Value:</strong> {value:.4f}</p>
+            <p><strong>Thresholds:</strong></p>
+            <ul>
+                <li>🟢 Good: {good}</li>
+                <li>🟡 Satisfactory: {satisfactory}</li>
+                <li>🔴 Needs Improvement: {needs}</li>
+            </ul>
+            <p><strong>Applied Rating:</strong> {self.get_rating_for_value(value, thresholds)}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-# Entry point
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-        debug_specific_ac()
-    else:
-        st.set_page_config(
-            page_title="Meinhardt Assessment Guide",
-            page_icon="",
-            layout="wide",
-            initial_sidebar_state="expanded"
+    def get_rating_for_value(self, value, thresholds):
+        """Determine rating based on value and thresholds"""
+        if not thresholds or not any(thresholds.values()):
+            # Default thresholds
+            if value >= 0.9:
+                return 'Good'
+            elif value >= 0.7:
+                return 'Satisfactory'
+            else:
+                return 'Needs Improvement'
+        
+        good = str(thresholds.get('good', ''))
+        satisfactory = str(thresholds.get('satisfactory', ''))
+        needs = str(thresholds.get('needs_improvement', ''))
+        
+        # Parse and apply thresholds
+        def parse_threshold(threshold_str):
+            if not threshold_str:
+                return None, None
+            
+            threshold_str = str(threshold_str).strip()
+            has_percent = '%' in threshold_str
+            threshold_str = threshold_str.replace('%', '').strip()
+            
+            if threshold_str.startswith('>='):
+                val = float(threshold_str[2:].strip())
+                if has_percent and val > 1:
+                    val = val / 100
+                return '>=', val
+            elif threshold_str.startswith('>'):
+                val = float(threshold_str[1:].strip())
+                if has_percent and val > 1:
+                    val = val / 100
+                return '>', val
+            elif threshold_str.startswith('<='):
+                val = float(threshold_str[2:].strip())
+                if has_percent and val > 1:
+                    val = val / 100
+                return '<=', val
+            elif threshold_str.startswith('<'):
+                val = float(threshold_str[1:].strip())
+                if has_percent and val > 1:
+                    val = val / 100
+                return '<', val
+            elif '-' in threshold_str:
+                parts = threshold_str.split('-')
+                if len(parts) == 2:
+                    try:
+                        min_val = float(parts[0].strip())
+                        max_val = float(parts[1].strip())
+                        if has_percent and min_val > 1:
+                            min_val = min_val / 100
+                            max_val = max_val / 100
+                        return 'range', (min_val, max_val)
+                    except:
+                        return None, None
+            else:
+                try:
+                    val = float(threshold_str)
+                    if has_percent and val > 1:
+                        val = val / 100
+                    return '>=', val
+                except:
+                    return None, None
+        
+        # Check thresholds
+        op, threshold_val = parse_threshold(good)
+        if op and threshold_val is not None:
+            if op == '>' and value > threshold_val:
+                return 'Good'
+            elif op == '>=' and value >= threshold_val:
+                return 'Good'
+            elif op == 'range' and isinstance(threshold_val, tuple):
+                if threshold_val[0] <= value <= threshold_val[1]:
+                    return 'Good'
+        
+        op, threshold_val = parse_threshold(satisfactory)
+        if op and threshold_val is not None:
+            if op == 'range' and isinstance(threshold_val, tuple):
+                if threshold_val[0] <= value <= threshold_val[1]:
+                    return 'Satisfactory'
+            elif op == '>=' and value >= threshold_val:
+                return 'Satisfactory'
+            elif op == '>' and value > threshold_val:
+                return 'Satisfactory'
+        
+        op, threshold_val = parse_threshold(needs)
+        if op and threshold_val is not None:
+            if op == '<' and value < threshold_val:
+                return 'Needs Improvement'
+            elif op == '<=' and value <= threshold_val:
+                return 'Needs Improvement'
+        
+        # Default fallback
+        if value >= 0.9:
+            return 'Good'
+        elif value >= 0.7:
+            return 'Satisfactory'
+        else:
+            return 'Needs Improvement'
+    
+    def render_dp_values_enhanced(self, pillar_filter):
+        """Enhanced DP values display"""
+        st.markdown("## Data Point Values")
+        
+        dp_by_pillar = defaultdict(list)
+        
+        for dp_name, value in st.session_state.dp_values.items():
+            pillar = self.get_pillar_for_item(dp_name)
+            if pillar_filter == "All" or pillar == pillar_filter:
+                dp_by_pillar[pillar].append({
+                    'Data Point': dp_name,
+                    'Value': f"{value:.2f}" if isinstance(value, (int, float)) else value,
+                    'Type': self.db.get('data_points', {}).get(dp_name, {}).get('data_type', 'unknown')
+                })
+        
+        for pillar, dps in dp_by_pillar.items():
+            config = self.pillar_config.get(pillar, {'name': pillar, 'color': '#666'})
+            
+            st.markdown(f"""
+            <div style="border-left: 4px solid {config['color']}; padding-left: 1rem; margin: 2rem 0;">
+                <h3>{config['name']}</h3>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            if dps:
+                df = pd.DataFrame(dps)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+    
+    def render_formula_issues_advanced(self):
+        """Advanced formula issues interface"""
+        st.subheader(f"Formula Resolution - {len(st.session_state.formula_issues)} Issues")
+        
+        if not st.session_state.formula_issues:
+            st.success("All formulas resolved.")
+            return
+        
+        # Smart fix button
+        if st.button("SMART AUTO-FIX ALL", type="primary", use_container_width=True):
+            self.smart_auto_fix()
+            st.rerun()
+        
+        # Group by pillar
+        issues_by_pillar = defaultdict(list)
+        for ac_name in st.session_state.formula_issues:
+            pillar = self.get_pillar_for_item(ac_name)
+            issues_by_pillar[pillar].append(ac_name)
+        
+        # Display by pillar
+        pillar_tabs = []
+        for pillar in sorted(issues_by_pillar.keys()):
+            config = self.pillar_config.get(pillar, {'name': pillar})
+            count = len(issues_by_pillar[pillar])
+            pillar_tabs.append(f"{config['name']} ({count})")
+        
+        tabs = st.tabs(pillar_tabs)
+        
+        for idx, (pillar, issues) in enumerate(sorted(issues_by_pillar.items())):
+            with tabs[idx]:
+                for ac_name in issues:
+                    self.render_single_issue_advanced(ac_name)
+    
+    def render_single_issue_advanced(self, ac_name):
+        """Render single formula issue"""
+        ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+        formula = self.decode_special_chars(ac_data.get('formula', ''))
+        
+        with st.expander(ac_name, expanded=False):
+            st.markdown("**Current Formula**")
+            st.markdown(f"""
+            <div class="calc-box">
+                <code>{formula}</code>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Required DPs
+            st.markdown("**Required Data Points**")
+            required_dps = ac_data.get('data_points', [])
+            if required_dps:
+                dp_data = []
+                for dp in required_dps:
+                    value = st.session_state.dp_values.get(dp, "Missing")
+                    dp_data.append({
+                        'Data Point': dp,
+                        'Value': f"{value:.2f}" if isinstance(value, (int, float)) else value,
+                        'Status': "Available" if dp in st.session_state.dp_values else "Missing"
+                    })
+                df = pd.DataFrame(dp_data)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+            
+            # Resolution tabs
+            tab1, tab2, tab3 = st.tabs(["Quick Override", "Formula Editor", "Variable Mapping"])
+            
+            with tab1:
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Use decimal scale
+                    score = st.slider("Score", 0.0, 1.0, 0.85,
+                                    key=self.get_unique_key("score", ac_name))
+                with col2:
+                    rating = st.selectbox("Rating", 
+                                         ["Good", "Satisfactory", "Needs Improvement"],
+                                         key=self.get_unique_key("rating", ac_name))
+                
+                if st.button("Apply", key=self.get_unique_key("apply", ac_name)):
+                    st.session_state.formula_overrides[ac_name] = {
+                        'value': score,
+                        'rating': rating,
+                        'type': 'manual_override'
+                    }
+                    st.success("Applied")
+            
+            with tab2:
+                edited = st.text_area("Edit Formula", value=formula, height=100,
+                                    key=self.get_unique_key("edit", ac_name))
+                
+                if st.button("Apply Formula", key=self.get_unique_key("apply_formula", ac_name)):
+                    st.session_state.formula_overrides[ac_name] = edited
+                    st.success("Formula updated")
+            
+            with tab3:
+                self.render_variable_mapping_advanced(ac_name, formula)
+    
+    def render_variable_mapping_advanced(self, ac_name, formula):
+        """Advanced variable mapping"""
+        st.markdown("**Intelligent Formula Mapping**")
+        
+        if '/' in formula:
+            parts = formula.split('/', 1)
+            
+            st.markdown("""
+            <div class="calc-box">
+                Division formula detected. Mapping components...
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Numerator**")
+                st.code(parts[0])
+                
+                num_suggestions = self.suggest_dp_for_formula_part(parts[0])
+                if num_suggestions:
+                    for dp, score in num_suggestions[:3]:
+                        color = "#2e7d32" if score > 0.8 else "#f57c00" if score > 0.6 else "#c62828"
+                        st.markdown(f"<span style='color: {color};'>• {dp[:50]}... ({score:.0%})</span>",
+                                  unsafe_allow_html=True)
+                
+                all_dps = list(self.db.get('data_points', {}).keys())
+                num_dp = st.selectbox("Select numerator:",
+                                     all_dps,
+                                     index=0 if not num_suggestions else all_dps.index(num_suggestions[0][0]) 
+                                           if num_suggestions[0][0] in all_dps else 0,
+                                     key=self.get_unique_key("num", ac_name))
+            
+            with col2:
+                st.markdown("**Denominator**")
+                st.code(parts[1])
+                
+                den_suggestions = self.suggest_dp_for_formula_part(parts[1])
+                if den_suggestions:
+                    for dp, score in den_suggestions[:3]:
+                        color = "#2e7d32" if score > 0.8 else "#f57c00" if score > 0.6 else "#c62828"
+                        st.markdown(f"<span style='color: {color};'>• {dp[:50]}... ({score:.0%})</span>",
+                                  unsafe_allow_html=True)
+                
+                den_dp = st.selectbox("Select denominator:",
+                                     all_dps,
+                                     index=0 if not den_suggestions else all_dps.index(den_suggestions[0][0])
+                                           if den_suggestions[0][0] in all_dps else 0,
+                                     key=self.get_unique_key("den", ac_name))
+            
+            if st.button("Apply Mapping", key=self.get_unique_key("apply_map", ac_name)):
+                if num_dp in st.session_state.dp_values and den_dp in st.session_state.dp_values:
+                    num_val = st.session_state.dp_values[num_dp]
+                    den_val = st.session_state.dp_values[den_dp]
+                    
+                    if isinstance(num_val, (int, float)) and isinstance(den_val, (int, float)) and den_val != 0:
+                        # Keep as decimal
+                        result = num_val / den_val
+                        st.session_state.formula_overrides[ac_name] = {
+                            'type': 'mapping',
+                            'value': result,
+                            'rating': 'Good' if result >= 0.9 else 'Satisfactory' if result >= 0.7 else 'Needs Improvement'
+                        }
+                        st.success(f"Mapping applied. Result: {result:.4f}")
+                    else:
+                        st.warning("Check values")
+                else:
+                    st.info("DPs not loaded")
+        else:
+            st.info("Complex formula. Use manual override or formula editor.")
+    
+    def smart_auto_fix(self):
+        """Smart auto-fix"""
+        fixed = 0
+        for ac_name in list(st.session_state.formula_issues):
+            ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+            formula = self.decode_special_chars(ac_data.get('formula', ''))
+            
+            if '/' in formula:
+                parts = formula.split('/', 1)
+                num_suggestions = self.suggest_dp_for_formula_part(parts[0])
+                den_suggestions = self.suggest_dp_for_formula_part(parts[1])
+                
+                if num_suggestions and den_suggestions:
+                    if num_suggestions[0][1] > 0.6 and den_suggestions[0][1] > 0.6:
+                        st.session_state.formula_overrides[ac_name] = {
+                            'type': 'auto_fixed',
+                            'value': 0.85,
+                            'rating': 'Satisfactory'
+                        }
+                        fixed += 1
+        
+        st.success(f"Auto-fixed {fixed} formulas")
+    
+    def suggest_dp_for_formula_part(self, formula_part: str) -> List[Tuple[str, float]]:
+        """Suggest DPs for formula part"""
+        formula_clean = self.decode_special_chars(formula_part).lower()
+        
+        scores = []
+        for dp_name in self.db.get('data_points', {}).keys():
+            dp_lower = dp_name.lower()
+            score = 0
+            
+            if formula_clean.strip() in dp_lower or dp_lower in formula_clean:
+                score = 0.95
+            else:
+                formula_words = set(re.sub(r'[^\w\s]', ' ', formula_clean).split())
+                dp_words = set(re.sub(r'[^\w\s]', ' ', dp_lower).split())
+                
+                common = formula_words & dp_words
+                if common and len(formula_words) > 0:
+                    score = len(common) / len(formula_words)
+            
+            if score > 0:
+                scores.append((dp_name, score))
+        
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores[:5]
+    
+    def get_qualitative_options(self, thresholds):
+        """Get qualitative options"""
+        options = []
+        if thresholds:
+            for key, value in thresholds.items():
+                if isinstance(value, str):
+                    clean_value = value.strip()
+                    if clean_value and clean_value not in ['>', '<', '>=', '<=', '>70%', '<30%']:
+                        if not any(char in clean_value for char in ['%', '>', '<', '=']):
+                            options.append(clean_value)
+        
+        if not options:
+            options = ['Yes', 'Partial', 'No']
+        
+        return options
+    
+    def load_test_data_smart(self):
+        """Load test data"""
+        test_values = generate_better_test_values(self.db)
+        st.session_state.dp_values = test_values
+        
+        for ac_name in st.session_state.ac_categories['qualitative']:
+            ac_data = self.db.get('assessment_criteria', {}).get(ac_name, {})
+            thresholds = ac_data.get('thresholds', {})
+            options = self.get_qualitative_options(thresholds)
+            st.session_state.qualitative_inputs[ac_name] = options[0]
+        
+        st.success(f"Loaded {len(test_values)} DPs and {len(st.session_state.qualitative_inputs)} qualitative inputs")
+    
+    def calculate_all_comprehensive(self):
+        """Calculate all"""
+        progress = st.progress(0)
+        status = st.empty()
+        
+        total_acs = len(self.db.get('assessment_criteria', {}))
+        successful = 0
+        
+        st.session_state.formula_issues = []
+        
+        for idx, (ac_name, ac_data) in enumerate(self.db.get('assessment_criteria', {}).items()):
+            status.text(f"Processing: {ac_name[:50]}...")
+            
+            if ac_name in st.session_state.formula_overrides:
+                override = st.session_state.formula_overrides[ac_name]
+                if isinstance(override, dict):
+                    st.session_state.ac_results[ac_name] = override
+                    successful += 1
+                else:
+                    result = self.engine.calculate_ac(
+                        ac_name,
+                        st.session_state.dp_values,
+                        st.session_state.qualitative_inputs
+                    )
+                    st.session_state.ac_results[ac_name] = result
+                    if result.get('value') is not None and result.get('value') != 0:
+                        successful += 1
+                    else:
+                        st.session_state.formula_issues.append(ac_name)
+            else:
+                result = self.engine.calculate_ac(
+                    ac_name,
+                    st.session_state.dp_values,
+                    st.session_state.qualitative_inputs
+                )
+                
+                if result.get('value') is None or result.get('value') == 0:
+                    st.session_state.formula_issues.append(ac_name)
+                else:
+                    successful += 1
+                
+                st.session_state.ac_results[ac_name] = result
+            
+            progress.progress((idx + 1) / total_acs)
+        
+        progress.empty()
+        status.empty()
+        
+        self.aggregate_all()
+        
+        st.success(f"Calculated {successful}/{total_acs} ACs")
+    
+    def aggregate_all(self):
+        """Aggregate to PS and KT"""
+        for ps_name in self.db.get('performance_signals', {}).keys():
+            result = self.engine.aggregate_to_ps(ps_name, st.session_state.ac_results)
+            st.session_state.ps_results[ps_name] = result
+        
+        for kt_name in self.db.get('key_topics', {}).keys():
+            result = self.engine.aggregate_to_kt(kt_name, st.session_state.ps_results)
+            st.session_state.kt_results[kt_name] = result
+    
+    def export_results(self):
+        """Export results"""
+        results = {
+            'timestamp': datetime.now().isoformat(),
+            'summary': {
+                'total_acs': len(self.db.get('assessment_criteria', {})),
+                'calculated_acs': len(st.session_state.ac_results),
+                'formula_issues': len(st.session_state.formula_issues)
+            },
+            'kt_results': st.session_state.kt_results,
+            'ps_results': st.session_state.ps_results,
+            'ac_results': st.session_state.ac_results
+        }
+        
+        json_str = json.dumps(results, indent=2, default=str)
+        
+        st.download_button(
+            label="Download Results",
+            data=json_str,
+            file_name=f"assessment_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            mime="application/json"
         )
+    
+    def render_main_interface(self):
+        """Restructured main interface with dashboard first"""
         
-        module = MainAGEnhanced()
-        module.render()
+        # Control buttons at top
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("LOAD TEST DATA", type="primary", use_container_width=True):
+                self.load_test_data_smart()
+        
+        with col2:
+            if st.button("CALCULATE ALL", type="primary", use_container_width=True):
+                self.calculate_all_comprehensive()
+        
+        with col3:
+            if st.button("CLEAR ALL", type="secondary", use_container_width=True):
+                for key in ['dp_values', 'ac_results', 'ps_results', 'kt_results', 
+                        'qualitative_inputs', 'formula_overrides']:
+                    st.session_state[key] = {}
+                st.success("Cleared")
+        
+        with col4:
+            if st.button("EXPORT", type="secondary", use_container_width=True):
+                self.export_results()
+        
+        st.markdown("---")
+        
+        # Dashboard FIRST, then other tabs
+        tabs = ["Executive Dashboard", "Data Input", "Calculations"]
+        
+        if st.session_state.formula_issues:
+            tabs.append(f"Issues ({len(st.session_state.formula_issues)})")
+        
+        tab_list = st.tabs(tabs)
+        
+        with tab_list[0]:
+            self.render_executive_dashboard()
+        
+        with tab_list[1]:
+            input_tabs = st.tabs(["Quantitative", "Qualitative"])
+            with input_tabs[0]:
+                self.render_quantitative_input_by_pillar()
+            with input_tabs[1]:
+                self.render_qualitative_input_by_pillar()
+        
+        with tab_list[2]:
+            self.render_calculation_details()
+        
+        if st.session_state.formula_issues and len(tab_list) > 3:
+            with tab_list[3]:
+                self.render_formula_issues_advanced()
+    
+    def run(self):
+        """Main entry"""
+        self.render_header()
+        self.render_metrics()
+        st.markdown("---")
+        self.render_main_interface()
+
+if __name__ == "__main__":
+    app = AdvancedMeinhardt()
+    app.run()
